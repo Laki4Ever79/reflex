@@ -9,6 +9,9 @@
 > and every so often it retrains itself on them, in an 18 MB file that is 1.5%
 > of the model it steers.
 >
+> Your corrections and your adapter stay yours — what's shared between users is
+> only the *policy* for where a correction belongs, never what anybody wrote.
+>
 > **Live demo → https://reflex-app-e6hd.onrender.com** — talk to the agent,
 > correct it the way you actually would, and watch where the correction goes.
 
@@ -147,6 +150,34 @@ model, a GPU to serve it, and a deferral cascade that sends each turn to
 whichever model should answer it.
 
 **That is the whole roadmap.** Not a research problem — a serving problem.
+
+## What is shared, and what never is
+
+The obvious objection to anything that trains on you: *so my data ends up in a
+model other people use.* No. The split is the point.
+
+| | |
+|---|---|
+| **private to you** | your corrections, your context bullets, your adapter. An adapter is an 18 MB file — one per person is cheap, and it never leaves your tenancy |
+| **shared across everyone** | the routing *policy* — which **kinds** of correction belong in which lane |
+
+**The allocator learns from decisions, not from content.**
+
+*"A rule a function can guarantee belongs in code"* generalises across every user
+and carries nobody's data. *"Staging is stg-2.internal"* generalises to no one,
+and never leaves the person who said it.
+
+That is what makes the network effect safe: the router gets better the more
+people use it, and **nothing anyone typed has to move for that to happen.**
+Pooling user text into a shared base model would buy the same improvement and
+pay for it in extraction risk — a model trained on one person's corrections can
+be made to repeat them to someone else. We are deliberately not doing that.
+
+> ⚠️ **The public demo is a single shared instance with no accounts.** Every
+> correction goes into one store, and context bullets from any visitor reach the
+> next visitor's agent. **Don't type anything private into it.** That's a
+> property of the demo, not the design — per-user state, auth and tenancy
+> isolation are ordinary work we didn't fake for a hackathon.
 
 ## Prior art — every ingredient has an owner
 

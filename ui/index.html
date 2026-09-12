@@ -89,6 +89,9 @@ header{padding:14px 22px;border-bottom:1px solid var(--border);
 .card .q{font-size:12.5px;line-height:1.45;color:#c3cdda}
 .card .w{font-size:11.5px;line-height:1.4;color:var(--muted);font-style:italic}
 .hint .foot{font-size:11.5px;color:var(--dim);text-align:center;line-height:1.6}
+.shared{font-size:11px;color:var(--dim);text-align:center;line-height:1.5;
+  border-top:1px solid var(--border);padding-top:11px;margin-top:2px}
+.shared b{color:var(--code);font-weight:500}
 @media(max-width:760px){.cards{grid-template-columns:1fr}}
 
 form{padding:12px 22px;border-top:1px solid var(--border);background:#0a0f1b;
@@ -232,6 +235,10 @@ button:disabled{opacity:.45;cursor:default}
           </button>
         </div>
         <p class="foot">Each one belongs somewhere different &mdash; watch the pipeline decide.</p>
+        <p class="shared">Shared demo, no accounts &mdash; what you correct here shapes the agent
+          for the next visitor. <b>Don&rsquo;t type anything private.</b><br>
+          The design is per-user: your corrections and your adapter stay yours, only the routing
+          policy is shared.</p>
       </div>
     </div>
     <form id="bar">
