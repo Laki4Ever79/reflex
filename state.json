@@ -134,10 +134,10 @@
     },
     {
       "id": 9,
-      "ts": "2026-09-12T17:29:17",
-      "agent_said": "Said a change was done/ready without running tests",
-      "user_wanted": "Run the test suite before telling the user a change is ready",
-      "situation": "User asked to add retry to upload; assistant treated the change as finished without tests",
+      "ts": "2026-09-12T17:58:54",
+      "agent_said": "Said the change was done/ready without running tests",
+      "user_wanted": "Run the test suite before telling me a change is ready",
+      "situation": "Assistant described adding retry to the upload function and treated it as complete",
       "cluster": "tests-before-done",
       "recurrence": 1,
       "lane": "code",
@@ -145,21 +145,69 @@
       "confidence": 0.95,
       "artifact": {
         "name": "tests_pass",
-        "signature": "def tests_pass() -> bool",
+        "signature": "tests_pass() -> bool",
         "implementation": "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n",
-        "call_when": "before telling the user a change is done, ready, or finished"
+        "call_when": "before telling the user a code change is done or ready"
+      }
+    },
+    {
+      "id": 10,
+      "ts": "2026-09-12T17:59:54",
+      "agent_said": "kept using the old staging host",
+      "user_wanted": "use stg-2.internal as the staging host",
+      "situation": "assistant was still pointing at the previous staging host after it moved",
+      "cluster": "stale-hostname",
+      "recurrence": 1,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=1 < 3",
+      "confidence": 0.95,
+      "artifact": {
+        "bullet": "Staging host is stg-2.internal (the previous staging host is obsolete).",
+        "trigger": "retrieved_on:staging host"
+      }
+    },
+    {
+      "id": 11,
+      "ts": "2026-09-12T18:01:00",
+      "agent_said": "Gave a longer acknowledgment instead of a brief reply.",
+      "user_wanted": "One short line and move on; do not spend the reply apologising.",
+      "situation": "Assistant was acknowledging the staging host change.",
+      "cluster": "acknowledgement-as-filler",
+      "recurrence": 3,
+      "lane": "weights",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=3 >= 3",
+      "confidence": 0.92,
+      "artifact": {
+        "principle": "When acknowledging a change, give one short line and move on; do not spend the reply apologising or elaborating.",
+        "scope": "acknowledgments and brief confirmations"
+      }
+    },
+    {
+      "id": 12,
+      "ts": "2026-09-12T18:01:58",
+      "agent_said": "Kept using the old staging host instead of stg-2.internal.",
+      "user_wanted": "Use only stg-2.internal; the old staging host is obsolete.",
+      "situation": "User is correcting which staging host to use.",
+      "cluster": "stale-hostname",
+      "recurrence": 2,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=2 < 3",
+      "confidence": 0.95,
+      "artifact": {
+        "bullet": "Use only stg-2.internal as the staging host; the old staging host is obsolete.",
+        "trigger": "retrieved_on:staging"
       }
     }
   ],
   "clusters": {
-    "acknowledgement-as-filler": 3,
+    "acknowledgement-as-filler": 4,
     "tests-before-done": 2,
     "push-to-main": 1,
     "over-apologizing": 2,
-    "stale-hostname": 1
+    "stale-hostname": 3
   },
-  "context_tokens": 161,
+  "context_tokens": 197,
   "queue_depth": 0,
   "adapter_version": null,
-  "if_all_context": 198
+  "if_all_context": 247
 }

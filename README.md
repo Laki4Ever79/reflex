@@ -2,9 +2,15 @@
 
 **Every reflex was learned once.**
 
-> Live demo → **https://reflex-app-e6hd.onrender.com**
-> Talk to the agent. Correct it the way you actually would. Watch where the
-> correction goes.
+> ### Correct it three times and it stops being a note — it gets **trained in**.
+>
+> Every other agent remembers what you told it, and pays for that memory on
+> every call forever. Reflex decides which corrections are worth *learning* —
+> and every so often it retrains itself on them, in an 18 MB file that is 1.5%
+> of the model it steers.
+>
+> **Live demo → https://reflex-app-e6hd.onrender.com** — talk to the agent,
+> correct it the way you actually would, and watch where the correction goes.
 
 ![Reflex — every reflex was learned once](docs/img/01-hero.png)
 
