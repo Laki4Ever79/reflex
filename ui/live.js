@@ -1,143 +1,169 @@
-// One conversation. The routing machinery appears only when a correction
-// is detected -- the fork is a moment in the chat, not a permanent board.
+// Chat on the left, pipeline on the right. /chat and /observe fire together:
+// the answer never waits on the routing, and the routing is visible while it runs.
 
 const $ = (id) => document.getElementById(id);
-const log = $("log");
-const THRESHOLD = 3;
-
-const LANES = [
-  ["code",    "a function it can't get wrong"],
-  ["weights", "part of how it thinks — free to use"],
-  ["context", "a note it re-reads every time"],
-];
+const log = $("log"), stages = $("stages");
 
 let messages = [];
 let busy = false;
+let lastAsk = null;      // the request that preceded a correction — for replay
+let pendingAsk = null;
 
-function setConn(mode, label) {
-  $("conn").className = "dot" + (mode ? " " + mode : "");
-  $("connlbl").textContent = label;
+function scroll(el) {
+  requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }));
 }
 
-function scroll() {
-  requestAnimationFrame(() => log.scrollTo({ top: log.scrollHeight, behavior: "smooth" }));
-}
-
-function addMsg(who, text) {
+function addMsg(who, text, cls) {
   const el = document.createElement("div");
-  el.className = "msg " + (who === "you" ? "you" : "bot");
-  el.innerHTML = `<div class="who">${who === "you" ? "YOU" : "AGENT"}</div>
-                  <div class="body"></div>`;
-  el.querySelector(".body").textContent = text;
+  el.className = "msg " + (who === "you" ? "you" : "bot") + (cls ? " " + cls : "");
+  el.innerHTML = `<div class="who">${who === "you" ? "YOU" : "AGENT"}</div><div class="body"></div>`;
+  if (text === null) {
+    el.querySelector(".body").innerHTML = `<span class="typing"><i></i><i></i><i></i></span>`;
+  } else {
+    el.querySelector(".body").textContent = text;
+  }
   log.appendChild(el);
-  scroll();
+  scroll(log);
   return el;
 }
 
-// the routing moment ---------------------------------------------------------
+// ---- pipeline panel --------------------------------------------------------
 
-function addRoute() {
+function clearStages() { stages.innerHTML = ""; }
+
+function stage(state, title, detail, opts = {}) {
   const el = document.createElement("div");
-  el.className = "route pending";
-  el.innerHTML = `
-    <div class="top">
-      <span class="k">CORRECTION</span>
-      <span class="t">deciding where this belongs…</span>
-      <span class="n"></span>
-    </div>
-    <div class="fork">
-      ${LANES.map(([l, d]) => `
-        <div class="opt" data-l="${l}">
-          <span class="n">${l.toUpperCase()}</span>
-          <span class="d">${d}</span>
-        </div>`).join("")}
-    </div>`;
-  log.appendChild(el);
-  scroll();
+  el.className = "stage " + state;
+  el.innerHTML = `<span class="pip"></span><div class="sbody"><div class="st"></div></div>`;
+  el.querySelector(".st").textContent = title;
+  const body = el.querySelector(".sbody");
+  if (detail) {
+    const d = document.createElement("div");
+    d.className = "sd" + (opts.mono ? " code" : "");
+    d.textContent = detail;
+    body.appendChild(d);
+  }
+  if (opts.html) body.insertAdjacentHTML("beforeend", opts.html);
+  stages.appendChild(el);
+  scroll(stages);
   return el;
 }
 
-function resolveRoute(el, alloc, state) {
-  el.classList.remove("pending");
-  if (!alloc || alloc.error) {
-    el.querySelector(".top .t").textContent = alloc?.error || "routing failed";
+function dotsHtml(count, threshold) {
+  const shown = Math.max(threshold, Math.min(count, 5));
+  let h = '<div class="dots">';
+  for (let i = 0; i < shown; i++) {
+    h += `<span class="rdot ${i < count ? (i >= threshold - 1 ? "on" : "seen") : ""}"></span>`;
+  }
+  return h + "</div>";
+}
+
+function setTotals(t) {
+  if (!t) return;
+  $("t-code").textContent = t.code ?? 0;
+  $("t-weights").textContent = t.weights ?? 0;
+  $("t-context").textContent = t.context ?? 0;
+}
+
+function renderObserve(d) {
+  clearStages();
+  stage("done", "Turn observed", "checked against what the agent just said");
+
+  if (!d.is_correction) {
+    stage("miss", "Not a correction", d.error || "an ordinary request — nothing to route");
+    $("pulse").className = "pulse";
     return;
   }
-  el.querySelector(".top .t").textContent = "routed";
-  el.querySelector(`.opt[data-l=${alloc.lane}]`)?.classList.add("win");
 
-  const why = document.createElement("div");
-  why.className = "why";
-  why.innerHTML = `<span class="mono">WHY</span>`;
-  why.appendChild(document.createTextNode(alloc.rationale || ""));
-  el.appendChild(why);
+  stage("done", "Correction detected", d.rule);
 
-  // recurrence dots, from the cluster this correction landed in
-  const rows = state?.corrections || [];
-  const last = rows[rows.length - 1];
-  const count = last ? (state.clusters || {})[last.cluster] || 0 : 0;
-  if (count) {
-    const n = el.querySelector(".top .n");
-    const shown = Math.max(THRESHOLD, Math.min(count, 5));
-    for (let i = 0; i < shown; i++) {
-      const d = document.createElement("span");
-      d.className = "rdot" + (i < count ? (i >= THRESHOLD - 1 ? " on" : " seen") : "");
-      n.appendChild(d);
-    }
-    n.title = `${count}× this kind of correction`;
+  if (d.error) {
+    stage("miss", "Routing failed", d.error);
+    $("pulse").className = "pulse";
+    return;
   }
-  scroll();
+
+  stage("done", `Cluster · ${d.cluster}`,
+        `${d.count}× this kind of correction`,
+        { html: dotsHtml(d.count, d.threshold) });
+
+  stage("done", "Routed",
+        d.rationale,
+        { html: `<div><span class="lane-pill ${d.lane}">${d.lane.toUpperCase()}</span></div>` });
+
+  if (d.made) stage("done", "Produced", d.made, { mono: d.lane === "code" });
+
+  setTotals(d.totals);
+  $("pulse").className = "pulse";
+  if (lastAsk) $("replay").classList.add("show");
 }
 
-// sending --------------------------------------------------------------------
+// ---- sending ---------------------------------------------------------------
 
-async function send(text) {
+async function send(text, isReplay) {
   if (busy || !text.trim()) return;
   busy = true;
   $("go").disabled = true;
+  $("replay").classList.remove("show");
   document.querySelector(".hint")?.remove();
 
+  const sentText = text;
   addMsg("you", text);
   messages.push({ role: "user", content: text });
-  setConn("busy", "thinking");
+  const bubble = addMsg("agent", null, isReplay ? "corrected" : "");
 
-  const thinking = addMsg("agent", "…");
+  clearStages();
+  stage("run", "Observing the turn…", "does this correct what the agent just said?");
+  $("pulse").className = "pulse on";
 
+  const payload = JSON.stringify({ messages });
+  const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body: payload };
+
+  // pipeline runs alongside — the answer never waits on it
+  const observed = fetch("/observe", opts).then((r) => r.json()).catch((e) => ({
+    is_correction: false, error: String(e),
+  }));
+
+  const body = bubble.querySelector(".body");
+  let acc = "";
   try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-    });
-    const d = await res.json();
-
+    const res = await fetch("/chat/stream", opts);
     if (!res.ok) {
-      thinking.querySelector(".body").textContent = d.message || d.error || "that didn't work";
-      thinking.querySelector(".body").style.color = "#e06c6c";
-      setConn("", "error");
-      return;
-    }
-
-    // a correction fires the pipeline: show the fork BEFORE the reply
-    if (d.was_correction) {
-      thinking.remove();
-      const route = addRoute();
-      await new Promise((r) => setTimeout(r, 450));
-      resolveRoute(route, d.allocation, d.state);
-      addMsg("agent", d.reply);
+      const j = await res.json().catch(() => ({}));
+      body.textContent = j.message || j.error || `error ${res.status}`;
+      body.style.color = "#e06c6c";
     } else {
-      thinking.querySelector(".body").textContent = d.reply;
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      body.textContent = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        acc += dec.decode(value, { stream: true });
+        body.textContent = acc;
+        scroll(log);
+      }
+      messages.push({ role: "assistant", content: acc });
+      pendingAsk = acc ? sentText : pendingAsk;
     }
-
-    messages.push({ role: "assistant", content: d.reply });
-    setConn("live", "live");
   } catch (err) {
-    thinking.querySelector(".body").textContent = String(err);
-    setConn("", "offline");
+    body.textContent = String(err);
   } finally {
     busy = false;
     $("go").disabled = false;
     $("msg").focus();
+  }
+
+  const d = await observed;
+  renderObserve(d);
+  if (d.is_correction) {
+    // the request BEFORE the correction is what replay re-asks
+    const prior = messages.filter((m) => m.role === "user");
+    lastAsk = prior.length >= 2 ? prior[prior.length - 2].content : null;
+    if (lastAsk) $("replay").classList.add("show");
+    log.lastElementChild?.classList.add("corrected");
+  } else {
+    lastAsk = pendingAsk;
   }
 }
 
@@ -148,20 +174,22 @@ $("bar").addEventListener("submit", (e) => {
   send(v);
 });
 
+$("replay").addEventListener("click", () => {
+  if (lastAsk) send(lastAsk, true);
+});
+
 $("reset").addEventListener("click", async () => {
   if (busy) return;
   busy = true;
-  setConn("busy", "restoring");
   try {
     await fetch("/reset", { method: "POST" });
-    messages = [];
+    messages = []; lastAsk = null; pendingAsk = null;
     log.innerHTML = "";
-    setConn("live", "live");
-  } catch {
-    setConn("", "offline");
-  } finally {
-    busy = false;
-  }
+    clearStages();
+    stages.innerHTML =
+      '<div class="idle">Every turn is watched.<br>Nothing fires unless you correct the agent.</div>';
+    $("replay").classList.remove("show");
+  } finally { busy = false; }
 });
 
 log.addEventListener("click", (e) => {
@@ -170,5 +198,10 @@ log.addEventListener("click", (e) => {
 });
 
 fetch("/state.json", { cache: "no-store" })
-  .then((r) => (r.ok ? setConn("live", "live") : setConn("", "offline")))
-  .catch(() => setConn("", "offline"));
+  .then((r) => r.json())
+  .then((s) => {
+    const t = { code: 0, weights: 0, context: 0 };
+    (s.corrections || []).forEach((c) => { if (t[c.lane] !== undefined) t[c.lane]++; });
+    setTotals(t);
+  })
+  .catch(() => {});

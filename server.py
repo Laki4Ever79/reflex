@@ -24,13 +24,13 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from allocator.allocate import AllocationError
-from allocator.chat import detect, reply
+from allocator.chat import detect, reply, reply_stream
 from allocator.store import STATE_PATH, allocate_and_store, load
-from contracts import Correction
+from contracts import WEIGHTS_RECURRENCE_THRESHOLD, Correction
 from lanes.weights.inference import chat as run_chat
 
 ROOT = Path(__file__).resolve().parent
@@ -46,6 +46,16 @@ MAX_FIELD = 400          # chars
 _hits: dict[str, deque] = defaultdict(deque)
 
 app = FastAPI(title="Reflex")
+
+
+def _clean(raw) -> list[dict]:
+    if not isinstance(raw, list):
+        return []
+    return [
+        {"role": m.get("role"), "content": str(m.get("content") or "")[:MAX_FIELD * 3]}
+        for m in raw[-12:]
+        if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+    ]
 
 
 def _client_ip(req: Request) -> str:
@@ -117,64 +127,118 @@ async def correct(req: Request):
 
 @app.post("/chat")
 async def chat(req: Request):
-    """One turn with the agent.
+    """The agent's reply, and nothing else. ONE model call, so it comes back fast.
 
-    If the user's message is a correction, it goes down the pipeline in the
-    same breath - the demo's whole point is that a correction is something you
-    SAY, not something you file. The response carries both the agent's reply
-    and, when one happened, the routing decision.
+    Correction detection and routing run separately via /observe, fired by the
+    browser at the same moment - the pipeline is background work and should not
+    make the user wait for an answer.
     """
     ip = _client_ip(req)
     if not _rate_ok(ip):
         return JSONResponse(
             {"error": "rate_limited",
-             "message": f"{RATE_LIMIT} messages per {RATE_WINDOW // 60} minutes. "
-                        "Every turn costs real model calls."},
+             "message": f"{RATE_LIMIT} messages per {RATE_WINDOW // 60} minutes."},
             status_code=429,
         )
-
     body = await req.json()
-    messages = body.get("messages") or []
-    if not isinstance(messages, list) or not messages:
-        return JSONResponse({"error": "empty", "message": "Say something first."},
-                            status_code=400)
-    messages = [
-        {"role": m.get("role"), "content": str(m.get("content") or "")[:MAX_FIELD * 3]}
-        for m in messages[-12:]
-        if m.get("role") in ("user", "assistant")
-    ]
-
-    allocation = None
-    detected = {"is_correction": False}
+    messages = _clean(body.get("messages"))
+    if not messages:
+        return JSONResponse({"error": "empty", "message": "Say something first."}, status_code=400)
     try:
-        detected = detect(messages)
-        if detected["is_correction"] and detected["user_wanted"]:
-            a = allocate_and_store(
-                Correction(
-                    agent_said=detected["agent_said"],
-                    user_wanted=detected["user_wanted"],
-                    situation=detected["situation"],
-                    recurrence=0,
-                )
-            )
-            allocation = {"lane": a.lane, "rationale": a.rationale,
-                          "confidence": a.confidence}
-    except AllocationError as e:
-        allocation = {"error": str(e)}
-    except Exception as e:  # noqa: BLE001
-        allocation = {"error": f"{type(e).__name__}: {e}"}
-
-    try:
-        text = reply(messages, load())
+        return {"reply": reply(messages, load())}
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": "agent_failed", "message": f"{type(e).__name__}: {e}"},
                             status_code=502)
 
+
+@app.post("/chat/stream")
+async def chat_stream(req: Request):
+    """Same reply, streamed. The wait becomes legible instead of dead."""
+    ip = _client_ip(req)
+    if not _rate_ok(ip):
+        return JSONResponse(
+            {"error": "rate_limited",
+             "message": f"{RATE_LIMIT} messages per {RATE_WINDOW // 60} minutes."},
+            status_code=429,
+        )
+    body = await req.json()
+    messages = _clean(body.get("messages"))
+    if not messages:
+        return JSONResponse({"error": "empty", "message": "Say something first."}, status_code=400)
+
+    state = load()
+
+    def gen():
+        try:
+            for piece in reply_stream(messages, state):
+                yield piece
+        except Exception as e:  # noqa: BLE001
+            yield f"\n[agent failed: {type(e).__name__}]"
+
+    return StreamingResponse(gen(), media_type="text/plain; charset=utf-8",
+                             headers={"Cache-Control": "no-store",
+                                      "X-Accel-Buffering": "no"})
+
+
+@app.post("/observe")
+async def observe(req: Request):
+    """The background pipeline: did that turn correct the agent, and where does it go?
+
+    Returns the stages the side panel renders, so the work is visible rather
+    than implied - detection, the extracted rule, the cluster and its count,
+    the lane, and the artifact that was produced.
+    """
+    body = await req.json()
+    messages = _clean(body.get("messages"))
+    if not messages:
+        return {"is_correction": False}
+
+    try:
+        d = detect(messages)
+    except Exception as e:  # noqa: BLE001
+        return {"is_correction": False, "error": f"{type(e).__name__}: {e}"}
+
+    if not (d["is_correction"] and d["user_wanted"]):
+        return {"is_correction": False}
+
+    try:
+        c = Correction(agent_said=d["agent_said"], user_wanted=d["user_wanted"],
+                       situation=d["situation"], recurrence=0)
+        a = allocate_and_store(c)
+    except AllocationError as e:
+        return {"is_correction": True, "rule": d["user_wanted"], "error": str(e)}
+    except Exception as e:  # noqa: BLE001
+        return {"is_correction": True, "rule": d["user_wanted"],
+                "error": f"{type(e).__name__}: {e}"}
+
+    state = load()
+    rows = state.get("corrections", [])
+    cluster = getattr(c, "cluster", "") or (rows[-1]["cluster"] if rows else "")
+    totals = {"code": 0, "weights": 0, "context": 0}
+    for r in rows:
+        if r["lane"] in totals:
+            totals[r["lane"]] += 1
+
+    art = rows[-1]["artifact"] if rows else {}
+    if a.lane == "code":
+        made = art.get("name", "") + "()"
+    elif a.lane == "weights":
+        made = art.get("principle", "")
+    else:
+        made = art.get("bullet", "")
+
     return {
-        "reply": text,
-        "was_correction": bool(detected.get("is_correction")),
-        "allocation": allocation,
-        "state": load(),
+        "is_correction": True,
+        "rule": d["user_wanted"],
+        "cluster": cluster,
+        "count": (state.get("clusters", {}) or {}).get(cluster, 0),
+        "threshold": WEIGHTS_RECURRENCE_THRESHOLD,
+        "lane": a.lane,
+        "rationale": a.rationale,
+        "confidence": a.confidence,
+        "made": made,
+        "totals": totals,
+        "state": state,
     }
 
 

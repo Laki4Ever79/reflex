@@ -92,6 +92,27 @@ def detect(messages: list[dict]) -> dict:
     }
 
 
+def reply_stream(messages: list[dict], state: dict):
+    """The agent's answer, token by token.
+
+    Grok takes ~7s for a short reply. Streaming does not make it faster, it
+    makes the wait legible - the first words land in about a second and the
+    demo stops looking stalled.
+    """
+    system = AGENT_SYSTEM + _learned_context(state)
+    stream = _client().chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "system", "content": system}] + messages[-12:],
+        temperature=0.3,
+        max_tokens=400,
+        stream=True,
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if delta:
+            yield delta
+
+
 def reply(messages: list[dict], state: dict) -> str:
     """The agent's answer, with context-lane learnings applied."""
     system = AGENT_SYSTEM + _learned_context(state)
