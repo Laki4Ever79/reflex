@@ -84,6 +84,64 @@ We are not claiming to have solved continual learning. We're claiming the
 missing piece isn't more context, it's a *policy* for what deserves to stop
 being context — and that you can build one and watch it work.
 
+## The consolidation cycle
+
+This is the part that makes the agent *incrementally smarter* rather than just
+better organised, and it is the reason the weights lane exists at all.
+
+Corrections routed to weights don't train anything on their own. Each one
+becomes a **principle**, and a principle is expanded into ~12 preference pairs
+covering different situations it applies to. Those pairs accumulate in a queue.
+
+When the queue passes `TRAINING_QUEUE_DEPTH`, a **consolidation run** fires:
+
+```
+principle  →  ~12 preference pairs  →  queue
+                                        │
+                    queue >= threshold  ▼
+                              ephemeral GPU sandbox · QLoRA · DPO
+                                        │
+                                        ▼
+                         adapter vN+1 scored against vN
+                            on held-out corrections
+                                        │
+                        better ─────────┴───────── worse
+                          ▼                          ▼
+                       promote                  discard, keep vN
+```
+
+**Triggered by queue depth, not by a clock.** Nothing burns a GPU because it is
+3am and two corrections came in. The system consolidates when there is something
+worth consolidating — which is also the better metaphor: you sleep on what you
+learned, not on a schedule.
+
+**Every cycle is reversible.** The lane is LoRA and never a merge, so an adapter
+is a file. A run that makes the agent worse is caught by the gate and thrown
+away, and the previous adapter stays. Reflex changes an assistant while nobody
+is watching; that is only acceptable if every change can be undone.
+
+**This has run.** `lanes/weights/adapters/` holds v1 and v2, trained from real
+corrections through this exact path — synthesis, queue, sandbox, QLoRA, gate.
+The loop is closed end to end.
+
+**And what it produces is tiny.** The v2 adapter is **18 MB — 1.5% of the model
+it steers**, rank 16 on the attention projections. That ratio is what makes any
+of this tractable: you never store a model per person, you store one base model
+and a small file per person, and swap the file in per request. A thousand users
+is one base model and 18 GB of adapters, not a thousand copies of a model.
+
+That's also the answer to the obvious objection — *"you can't fine-tune a model
+for every user."* You don't. You fine-tune a percent and a half of one.
+
+What it is **not** doing yet is serving those weights back into the conversation
+at a quality worth routing to. We trained on Qwen3-0.6B because it fits on CPU;
+inference works (~8s a call in a Daytona sandbox) but a 0.6B is worse than grok
+at everything except the one thing it learned. Closing that means a bigger base
+model, a GPU to serve it, and a deferral cascade that sends each turn to
+whichever model should answer it.
+
+**That is the whole roadmap.** Not a research problem — a serving problem.
+
 ## Prior art — every ingredient has an owner
 
 The composition is the idea, and we say so.
