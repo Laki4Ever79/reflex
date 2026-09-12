@@ -1,0 +1,8 @@
+agent_said,user_wanted,situation,recurrence
+"I'll say 'U redu.' while the lookup runs.","Fillers must signal waiting — 'Samo trenutak', not an acknowledgement.","Agent used an acknowledgement as a latency filler.",0
+"The agent answers 'Važi.' and then goes quiet for four seconds.","That's an ack again. A filler has to tell the caller to wait, not that we're finished.","Agent acknowledged instead of signalling a pause.",0
+"Done, the change is ready.","Always run the tests before telling me it's done.","Agent claimed a task complete without running the suite.",0
+"I've pushed the fix to main.","Never push to main. Branch and open a PR.","Agent committed directly to the default branch.",0
+"I sincerely apologize for the confusion, and I'm very sorry.","Stop over-apologizing. One short acknowledgement, then move on.","Agent wrote three sentences of apology over a small mistake.",0
+"My apologies again for the earlier mistake, that was my error entirely.","Again — one line, then continue. You're spending the reply on apology.","Agent opened another reply with an apology.",0
+"I'll deploy to the staging environment at staging.internal.","Staging moved to stg-2.internal last week.","Agent used a stale hostname.",0
