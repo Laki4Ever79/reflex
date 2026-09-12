@@ -93,9 +93,45 @@ function renderObserve(d) {
 
   if (d.made) stage("done", "Produced", d.made, { mono: d.lane === "code" });
 
+  // the code lane actually runs — boot a sandbox and show what came back
+  if (d.lane === "code") runSandbox();
+
   setTotals(d.totals);
   $("pulse").className = "pulse";
   if (lastAsk) $("replay").classList.add("show");
+}
+
+async function runSandbox() {
+  const st = stage("run", "Running it in a Daytona sandbox…",
+                   "agent-written code never executes on our machine");
+  $("pulse").className = "pulse on";
+  try {
+    const res = await fetch("/materialize", { method: "POST" });
+    const d = await res.json();
+    if (!res.ok) {
+      st.className = "stage miss";
+      st.querySelector(".st").textContent = "Sandbox failed";
+      st.querySelector(".sd").textContent = d.message || d.error || "unknown";
+    } else {
+      st.className = "stage done";
+      st.querySelector(".st").textContent = "Ran in a Daytona sandbox";
+      st.querySelector(".sd").textContent =
+        (d.sandbox_id ? d.sandbox_id.slice(0, 12) + " · " : "") +
+        (d.returned != null ? "returned " + d.returned : "validated");
+      if (d.implementation) {
+        const c = document.createElement("div");
+        c.className = "sd code";
+        c.textContent = d.implementation.trim();
+        st.querySelector(".sbody").appendChild(c);
+      }
+    }
+  } catch (err) {
+    st.className = "stage miss";
+    st.querySelector(".sd").textContent = String(err);
+  } finally {
+    $("pulse").className = "pulse";
+    scroll(stages);
+  }
 }
 
 // ---- sending ---------------------------------------------------------------

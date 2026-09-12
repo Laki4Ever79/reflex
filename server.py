@@ -30,7 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from allocator.allocate import AllocationError
 from allocator.chat import detect, reply, reply_stream
 from allocator.store import STATE_PATH, allocate_and_store, load
-from contracts import WEIGHTS_RECURRENCE_THRESHOLD, Correction
+from contracts import WEIGHTS_RECURRENCE_THRESHOLD, CodeArtifact, Correction
 from lanes.weights.inference import chat as run_chat
 
 ROOT = Path(__file__).resolve().parent
@@ -239,6 +239,50 @@ async def observe(req: Request):
         "made": made,
         "totals": totals,
         "state": state,
+    }
+
+
+@app.post("/materialize")
+async def materialize_latest(req: Request):
+    """Execute the newest code-lane artifact in a Daytona sandbox.
+
+    Separate from /observe on purpose: booting a sandbox takes seconds, and the
+    routing decision should not wait on it. The browser calls this only when a
+    correction routed to CODE, so the sandbox step is its own visible stage.
+
+    This is the one place agent-written code actually runs, and it never runs
+    here - only inside the sandbox.
+    """
+    ip = _client_ip(req)
+    if not _rate_ok(ip):
+        return JSONResponse({"error": "rate_limited",
+                             "message": "too many sandboxes, wait a minute"}, status_code=429)
+
+    rows = [c for c in load().get("corrections", []) if c.get("lane") == "code"]
+    if not rows:
+        return JSONResponse({"error": "nothing", "message": "no code-lane artifact yet"},
+                            status_code=404)
+    art = rows[-1].get("artifact") or {}
+    try:
+        from lanes.code.materialize import materialize
+        tool = materialize(
+            CodeArtifact(
+                name=art.get("name", "tool"),
+                signature=art.get("signature", ""),
+                implementation=art.get("implementation", ""),
+                call_when=art.get("call_when", ""),
+            )
+        )
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": "sandbox_failed",
+                             "message": f"{type(e).__name__}: {e}"}, status_code=502)
+
+    return {
+        "name": getattr(tool, "name", art.get("name", "")),
+        "signature": getattr(tool, "signature", ""),
+        "sandbox_id": getattr(tool, "sandbox_id", None),
+        "returned": getattr(tool, "validated_return", None),
+        "implementation": art.get("implementation", ""),
     }
 
 
