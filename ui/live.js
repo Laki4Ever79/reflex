@@ -1,10 +1,17 @@
-// Live junction. Polls /state.json, posts corrections to /correct.
-// The branch that lights up is the one the allocator actually chose.
+// One conversation. The routing machinery appears only when a correction
+// is detected -- the fork is a moment in the chat, not a permanent board.
 
-const LANES = ["code", "weights", "context"];
-const THRESHOLD = 3;
 const $ = (id) => document.getElementById(id);
+const log = $("log");
+const THRESHOLD = 3;
 
+const LANES = [
+  ["code",    "a function it can't get wrong"],
+  ["weights", "part of how it thinks — free to use"],
+  ["context", "a note it re-reads every time"],
+];
+
+let messages = [];
 let busy = false;
 
 function setConn(mode, label) {
@@ -12,133 +19,133 @@ function setConn(mode, label) {
   $("connlbl").textContent = label;
 }
 
-function setDots(n) {
-  const box = $("dots");
-  box.innerHTML = "";
-  const shown = Math.max(THRESHOLD, Math.min(n, 6));
-  for (let i = 0; i < shown; i++) {
-    const d = document.createElement("span");
-    d.className = "rdot" + (i < n && i >= THRESHOLD - 1 ? " on" : "");
-    if (i < n && i < THRESHOLD - 1) d.style.background = "var(--muted)";
-    box.appendChild(d);
+function scroll() {
+  requestAnimationFrame(() => log.scrollTo({ top: log.scrollHeight, behavior: "smooth" }));
+}
+
+function addMsg(who, text) {
+  const el = document.createElement("div");
+  el.className = "msg " + (who === "you" ? "you" : "bot");
+  el.innerHTML = `<div class="who">${who === "you" ? "YOU" : "AGENT"}</div>
+                  <div class="body"></div>`;
+  el.querySelector(".body").textContent = text;
+  log.appendChild(el);
+  scroll();
+  return el;
+}
+
+// the routing moment ---------------------------------------------------------
+
+function addRoute() {
+  const el = document.createElement("div");
+  el.className = "route pending";
+  el.innerHTML = `
+    <div class="top">
+      <span class="k">CORRECTION</span>
+      <span class="t">deciding where this belongs…</span>
+      <span class="n"></span>
+    </div>
+    <div class="fork">
+      ${LANES.map(([l, d]) => `
+        <div class="opt" data-l="${l}">
+          <span class="n">${l.toUpperCase()}</span>
+          <span class="d">${d}</span>
+        </div>`).join("")}
+    </div>`;
+  log.appendChild(el);
+  scroll();
+  return el;
+}
+
+function resolveRoute(el, alloc, state) {
+  el.classList.remove("pending");
+  if (!alloc || alloc.error) {
+    el.querySelector(".top .t").textContent = alloc?.error || "routing failed";
+    return;
   }
-}
+  el.querySelector(".top .t").textContent = "routed";
+  el.querySelector(`.opt[data-l=${alloc.lane}]`)?.classList.add("win");
 
-function clearRoute() {
-  LANES.forEach((l) => {
-    $("b-" + l).className = "branch";
-    document.querySelector(`.lane[data-l=${l}]`).classList.remove("chosen");
-  });
-}
+  const why = document.createElement("div");
+  why.className = "why";
+  why.innerHTML = `<span class="mono">WHY</span>`;
+  why.appendChild(document.createTextNode(alloc.rationale || ""));
+  el.appendChild(why);
 
-function showRoute(lane) {
-  clearRoute();
-  $("b-" + lane).className = "branch taken " + lane;
-  document.querySelector(`.lane[data-l=${lane}]`).classList.add("chosen");
-}
-
-function thinking(on) {
-  $("trunk").className.baseVal = on ? "trunk busy" : "trunk";
-  $("node").className.baseVal = on ? "node thinking" : "node";
-  $("nodetext").textContent = on ? "deciding…" : "which lane?";
-  if (on) clearRoute();
-}
-
-// ---- render the latest correction from state --------------------------------
-
-function renderLatest(state) {
-  const rows = state.corrections || [];
-  if (!rows.length) return;
-  const r = rows[rows.length - 1];
-
-  $("quote").textContent = "“" + r.user_wanted + "”";
-  $("why").textContent = r.rationale || "";
-  showRoute(r.lane);
-
-  const count = (state.clusters || {})[r.cluster] || 0;
-  setDots(count);
-  const hot = r.lane === "weights";
-  $("rnote").className = "rnote" + (hot ? " hot" : "");
-  $("rnote").textContent =
-    count >= THRESHOLD
-      ? `${count}× — enough to be worth learning`
-      : `${count}× — not yet worth training on`;
-
-  // lane footers: what each lane is actually holding
-  const by = { code: 0, weights: 0, context: 0 };
-  rows.forEach((x) => { if (by[x.lane] !== undefined) by[x.lane]++; });
-  $("f-code").textContent = by.code
-    ? `${by.code} function${by.code > 1 ? "s" : ""} written`
-    : "nothing here yet";
-  $("f-weights").textContent = by.weights
-    ? `${by.weights} principle${by.weights > 1 ? "s" : ""} queued for training`
-    : "nothing here yet";
-  const tok = state.context_tokens || 0;
-  $("f-context").textContent = by.context
-    ? `${by.context} note${by.context > 1 ? "s" : ""}` + (tok ? ` · ${tok} tokens every call` : "")
-    : "nothing here yet";
-}
-
-async function poll() {
-  if (busy) return;
-  try {
-    const res = await fetch("/state.json", { cache: "no-store" });
-    if (!res.ok) throw new Error(res.status);
-    setConn("live", "live");
-    renderLatest(await res.json());
-  } catch {
-    setConn("", "offline");
+  // recurrence dots, from the cluster this correction landed in
+  const rows = state?.corrections || [];
+  const last = rows[rows.length - 1];
+  const count = last ? (state.clusters || {})[last.cluster] || 0 : 0;
+  if (count) {
+    const n = el.querySelector(".top .n");
+    const shown = Math.max(THRESHOLD, Math.min(count, 5));
+    for (let i = 0; i < shown; i++) {
+      const d = document.createElement("span");
+      d.className = "rdot" + (i < count ? (i >= THRESHOLD - 1 ? " on" : " seen") : "");
+      n.appendChild(d);
+    }
+    n.title = `${count}× this kind of correction`;
   }
+  scroll();
 }
 
-// ---- submitting -------------------------------------------------------------
+// sending --------------------------------------------------------------------
 
-$("bar").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const wanted = $("wanted").value.trim();
-  if (!wanted || busy) return;
-
+async function send(text) {
+  if (busy || !text.trim()) return;
   busy = true;
   $("go").disabled = true;
-  setConn("busy", "asking the allocator");
-  thinking(true);
-  $("quote").textContent = "“" + wanted + "”";
-  $("why").textContent = "…";
-  $("hint").className = "hint";
+  document.querySelector(".hint")?.remove();
+
+  addMsg("you", text);
+  messages.push({ role: "user", content: text });
+  setConn("busy", "thinking");
+
+  const thinking = addMsg("agent", "…");
 
   try {
-    const res = await fetch("/correct", {
+    const res = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        agent_said: $("said").value.trim(),
-        user_wanted: wanted,
-        situation: "",
-      }),
+      body: JSON.stringify({ messages }),
     });
     const d = await res.json();
-    thinking(false);
 
     if (!res.ok) {
-      $("hint").className = "hint err";
-      $("hint").textContent = d.message || d.error || "that didn't work";
-      $("why").textContent = "";
+      thinking.querySelector(".body").textContent = d.message || d.error || "that didn't work";
+      thinking.querySelector(".body").style.color = "#e06c6c";
       setConn("", "error");
-    } else {
-      $("said").value = "";
-      $("wanted").value = "";
-      if (d.state) renderLatest(d.state);
-      setConn("live", "live");
+      return;
     }
+
+    // a correction fires the pipeline: show the fork BEFORE the reply
+    if (d.was_correction) {
+      thinking.remove();
+      const route = addRoute();
+      await new Promise((r) => setTimeout(r, 450));
+      resolveRoute(route, d.allocation, d.state);
+      addMsg("agent", d.reply);
+    } else {
+      thinking.querySelector(".body").textContent = d.reply;
+    }
+
+    messages.push({ role: "assistant", content: d.reply });
+    setConn("live", "live");
   } catch (err) {
-    thinking(false);
-    $("hint").className = "hint err";
-    $("hint").textContent = String(err);
+    thinking.querySelector(".body").textContent = String(err);
     setConn("", "offline");
   } finally {
     busy = false;
     $("go").disabled = false;
+    $("msg").focus();
   }
+}
+
+$("bar").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = $("msg").value;
+  $("msg").value = "";
+  send(v);
 });
 
 $("reset").addEventListener("click", async () => {
@@ -146,9 +153,9 @@ $("reset").addEventListener("click", async () => {
   busy = true;
   setConn("busy", "restoring");
   try {
-    const res = await fetch("/reset", { method: "POST" });
-    const d = await res.json();
-    if (d.state) renderLatest(d.state);
+    await fetch("/reset", { method: "POST" });
+    messages = [];
+    log.innerHTML = "";
     setConn("live", "live");
   } catch {
     setConn("", "offline");
@@ -157,13 +164,11 @@ $("reset").addEventListener("click", async () => {
   }
 });
 
-document.querySelectorAll(".try").forEach((b) => {
-  b.addEventListener("click", () => {
-    $("said").value = b.dataset.s || "";
-    $("wanted").value = b.dataset.w || "";
-    $("wanted").focus();
-  });
+log.addEventListener("click", (e) => {
+  const b = e.target.closest(".try");
+  if (b) { $("msg").value = b.dataset.t; $("msg").focus(); }
 });
 
-poll();
-setInterval(poll, 2500);
+fetch("/state.json", { cache: "no-store" })
+  .then((r) => (r.ok ? setConn("live", "live") : setConn("", "offline")))
+  .catch(() => setConn("", "offline"));

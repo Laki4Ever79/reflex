@@ -28,6 +28,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from allocator.allocate import AllocationError
+from allocator.chat import detect, reply
 from allocator.store import STATE_PATH, allocate_and_store, load
 from contracts import Correction
 from lanes.weights.inference import chat as run_chat
@@ -110,6 +111,69 @@ async def correct(req: Request):
         "lane": a.lane,
         "rationale": a.rationale,
         "confidence": a.confidence,
+        "state": load(),
+    }
+
+
+@app.post("/chat")
+async def chat(req: Request):
+    """One turn with the agent.
+
+    If the user's message is a correction, it goes down the pipeline in the
+    same breath - the demo's whole point is that a correction is something you
+    SAY, not something you file. The response carries both the agent's reply
+    and, when one happened, the routing decision.
+    """
+    ip = _client_ip(req)
+    if not _rate_ok(ip):
+        return JSONResponse(
+            {"error": "rate_limited",
+             "message": f"{RATE_LIMIT} messages per {RATE_WINDOW // 60} minutes. "
+                        "Every turn costs real model calls."},
+            status_code=429,
+        )
+
+    body = await req.json()
+    messages = body.get("messages") or []
+    if not isinstance(messages, list) or not messages:
+        return JSONResponse({"error": "empty", "message": "Say something first."},
+                            status_code=400)
+    messages = [
+        {"role": m.get("role"), "content": str(m.get("content") or "")[:MAX_FIELD * 3]}
+        for m in messages[-12:]
+        if m.get("role") in ("user", "assistant")
+    ]
+
+    allocation = None
+    detected = {"is_correction": False}
+    try:
+        detected = detect(messages)
+        if detected["is_correction"] and detected["user_wanted"]:
+            a = allocate_and_store(
+                Correction(
+                    agent_said=detected["agent_said"],
+                    user_wanted=detected["user_wanted"],
+                    situation=detected["situation"],
+                    recurrence=0,
+                )
+            )
+            allocation = {"lane": a.lane, "rationale": a.rationale,
+                          "confidence": a.confidence}
+    except AllocationError as e:
+        allocation = {"error": str(e)}
+    except Exception as e:  # noqa: BLE001
+        allocation = {"error": f"{type(e).__name__}: {e}"}
+
+    try:
+        text = reply(messages, load())
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": "agent_failed", "message": f"{type(e).__name__}: {e}"},
+                            status_code=502)
+
+    return {
+        "reply": text,
+        "was_correction": bool(detected.get("is_correction")),
+        "allocation": allocation,
         "state": load(),
     }
 
