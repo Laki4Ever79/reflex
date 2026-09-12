@@ -6,6 +6,8 @@
 > Talk to the agent. Correct it the way you actually would. Watch where the
 > correction goes.
 
+![Reflex — every reflex was learned once](docs/img/01-hero.png)
+
 ---
 
 ## The problem nobody names
@@ -49,6 +51,15 @@ Two rules it will not break:
 The result: an agent that gets **cheaper** as it learns, because things that
 belong in the weights leave the context, and things that belong in code leave
 the model entirely.
+
+![A correction routed to the code lane, executed in a Daytona sandbox](docs/img/02-routed.png)
+
+*One correction, start to finish. It was detected as a correction rather than a
+request, clustered against previous ones, routed to **code** because a function
+can guarantee it, and the function grok wrote was executed in a Daytona sandbox
+— `0d6cefdc` — with what it returned. Bottom right: 161 tokens carried on every
+call, against 198 if that correction had been written down as a note like every
+other agent would have done. That gap is the product.*
 
 ## Why this is bigger than a cost trick
 
