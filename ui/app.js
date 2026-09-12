@@ -27,9 +27,12 @@
  */
 
 const CONFIG = {
-  // Point this at the real backend once Aleksa's integration exposes a
-  // state endpoint. Until then it polls a static file, and falls back to
-  // fabricated data if that file 404s — so the board is never just blank.
+  // server.py registers GET /state.json before mounting ui/ as static
+  // files, so this resolves to the live endpoint (backed by
+  // allocator/store.py) whenever server.py is what's serving this page.
+  // Falls back to fabricated data if that request fails for any reason
+  // (page opened as a bare static file, backend down, ...) — so the
+  // board is never just blank.
   STATE_URL: "./state.json",
   POLL_MS: 1500,
   MAX_ITEMS_PER_LANE: 6,
@@ -114,15 +117,48 @@ function advanceMock() {
 }
 
 // ---------------------------------------------------------------------
+// real backend shape -> the per-lane shape render() expects
+//
+// server.py / allocator/store.py persist ONE flat "corrections" list
+// (each row tagged with a "lane"), not three pre-split lane buckets, and
+// track a single adapter_version int rather than an {version,parent,...}
+// object. That's the seam the comment at the top of this file warned
+// about. Adjust HERE if allocator/store.py's shape changes again — the
+// render* functions below should never need to know the wire format.
+// ---------------------------------------------------------------------
+function normalizeState(raw) {
+  const byLane = { code: [], weights: [], context: [] };
+  for (const row of raw.corrections ?? []) {
+    if (!(row.lane in byLane)) continue; // failed/unknown allocation - skip, don't crash the board
+    byLane[row.lane].push({
+      id: String(row.id),
+      rationale: row.rationale,
+      recurrence: row.recurrence,
+      ts: row.ts,
+    });
+  }
+  LANES.forEach((lane) => byLane[lane].reverse()); // newest first, matches MAX_ITEMS_PER_LANE slicing
+
+  return {
+    code: { items: byLane.code, context_tokens: 0 },
+    weights: { items: byLane.weights, context_tokens: 0 },
+    context: { items: byLane.context, context_tokens: raw.context_tokens ?? 0 },
+    adapter: raw.adapter_version != null ? { version: raw.adapter_version } : null,
+    queue_depth: raw.queue_depth ?? 0,
+  };
+}
+
+// ---------------------------------------------------------------------
 // fetching real state, with mock fallback
 // ---------------------------------------------------------------------
 
 async function fetchState() {
   try {
     const res = await fetch(CONFIG.STATE_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error(`status.json responded ${res.status}`);
+    if (!res.ok) throw new Error(`state.json responded ${res.status}`);
+    const raw = await res.json();
     setConnStatus("live");
-    return await res.json();
+    return normalizeState(raw);
   } catch (err) {
     setConnStatus("mock");
     return advanceMock();
