@@ -1,0 +1,101 @@
+================================================================================
+BRAIN.txt  —  directives for the coding agent working on the allocator lane
+================================================================================
+
+This file is written by a reviewing model that reads the repo between your
+tasks. It is the authority on what to do next.
+
+HOW TO USE IT
+  - Read this file before starting any task.
+  - Re-read it after you finish a task, before asking what's next.
+  - CURRENT TASK is what to do now. Do only that.
+  - REVIEW NOTES are defects found in code you already wrote. Fix them before
+    starting a new CURRENT TASK.
+  - If this file contradicts an earlier instruction in the chat, this file wins.
+  - Never edit this file.
+
+================================================================================
+STANDING RULES
+================================================================================
+
+1. NO FALLBACK TO THE CONTEXT LANE. If the allocator cannot parse a response,
+   retry once, then raise AllocationError. Do not return a default Allocation,
+   do not "safely" route to context, do not swallow the error. A fallback sends
+   every ambiguous case to context, which silently makes the product's central
+   claim false while everything still appears to work. This is the single most
+   important rule in the repo.
+
+2. contracts.py is PINNED. Do not change a shape in it. If you believe it is
+   wrong, say so and stop — do not edit it.
+
+3. Stay in your lane. Touch only:
+       allocator/            lanes/weights/gate.py
+   Do not create or edit files under lanes/code/, lanes/context/, or ui/.
+   Other people are working in those directories right now.
+
+4. Run `python harness.py` after every change. Your rows are "allocator" and
+   "promotion gate". They must not be BROKEN when you stop.
+
+5. No test suite, no abstraction layers, no config framework, no retry
+   libraries. This is a six-hour build. One working call path beats three
+   configurable ones.
+
+6. Secrets come from the environment (XAI_API_KEY). Never hardcode a key,
+   never print one, never commit one.
+
+================================================================================
+CURRENT TASK
+================================================================================
+
+Build the allocator's one working call path.
+
+  allocator/allocate.py
+      def allocate(c: Correction) -> Allocation
+
+      - grok-4.6 at https://api.x.ai/v1/chat/completions (OpenAI-compatible,
+        key in XAI_API_KEY). Use the openai python client with base_url set.
+      - System prompt: read allocator/prompt.txt at call time, not baked in.
+        The prompt gets iterated constantly — it must be editable without
+        touching code.
+      - User message: the four Correction fields, labelled.
+      - Ask for JSON output. Parse strictly into Allocation + the matching
+        artifact dataclass from contracts.py.
+      - Malformed or unparseable: retry ONCE, then raise AllocationError.
+        See standing rule 1.
+
+  allocator/cli.py
+      python -m allocator.cli --said "..." --wanted "..." --situation "..." \
+                              --recurrence 2
+
+      Prints lane, confidence, rationale, and the artifact fields, readably.
+      This is the loop used to iterate prompt.txt, so make the output easy to
+      eyeball — the rationale matters as much as the lane.
+
+DONE WHEN
+  `python harness.py --live` shows OK on the allocator row, and the CLI routes
+  all three of these correctly:
+
+    tests    --said "Done, the change is ready."
+             --wanted "Always run the tests before telling me it's done."
+             --recurrence 4                                   -> expect CODE
+
+    apology  --said "I sincerely apologize for the confusion, I'm very sorry."
+             --wanted "Stop over-apologizing. One short acknowledgement."
+             --recurrence 5                                   -> expect WEIGHTS
+
+    staging  --said "I'll deploy to staging.internal."
+             --wanted "Staging moved to stg-2.internal last week."
+             --recurrence 0                                   -> expect CONTEXT
+
+  If one routes wrong, fix allocator/prompt.txt — NOT the parsing code, and
+  never by special-casing an input. The prompt is the policy.
+
+DO NOT YET
+  Dashboard. Batch mode. Persistence. The gate. Clustering/recurrence counting.
+  Those come in later tasks.
+
+================================================================================
+REVIEW NOTES
+================================================================================
+
+(none yet — first pass)
