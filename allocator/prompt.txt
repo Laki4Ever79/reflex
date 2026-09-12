@@ -19,6 +19,17 @@ DECIDE IN THIS ORDER — the order is the policy:
   2. Behavioural/stylistic judgement AND recurrence >= 3?  -> WEIGHTS
   3. Otherwise                                             -> CONTEXT
 
+What each step actually means:
+  CODE — a check, computation, or lookup against a durable source (tests,
+    schema, clock, filesystem, an API). "Always do X before Y" that can be a
+    boolean function is CODE. Do not invent a function whose body is a
+    hardcoded string that will go stale — that is a fact, not a guarantee.
+  WEIGHTS — how the agent sounds or behaves when the same judgement keeps
+    coming up (recurrence >= 3). Tone, apology, verbosity, hedging. A
+    principle, not training pairs.
+  CONTEXT — a specific fact that is true now (hostname, URL, name, one-off
+    preference) OR a behavioural judgement that has not yet recurred enough.
+
 Two hard rules:
   - NEVER send to another lane what a function can guarantee.
     Weights bias. Code promises. Prefer the promise.

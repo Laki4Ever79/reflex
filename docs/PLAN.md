@@ -136,6 +136,17 @@ If B looks unreachable, **cut the weights lane and ship two.** The routing story
 with two lanes; it does not hold with a broken third. That call is Aleksa's and it gets
 made at checkpoint B, not at 18:30.
 
+## Submission — see docs/SUBMISSION.md
+
+Three requirements are disqualifiers, not polish: **a deployed public URL** (localhost is
+rejected), **a ~3 minute video**, and **an actual submitted entry**.
+
+Do all three *before* they're earned. A placeholder Render page satisfies the URL rule in
+ten minutes and proves the deploy path works while there's still time to debug it.
+Resubmitting updates the same entry, so a rough submission costs nothing and insures
+everything. Record a throwaway video the moment anything runs end to end, then re-record
+when it's better.
+
 ## The one thing that ends this badly
 
 A working system and no video. Whoever owns the video starts it before the build feels

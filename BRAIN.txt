@@ -41,7 +41,13 @@ STANDING RULES
    configurable ones.
 
 6. Secrets come from the environment (XAI_API_KEY). Never hardcode a key,
-   never print one, never commit one.
+   never print one, never commit one. This repo is PUBLIC — a committed key is
+   live on the internet the moment it is pushed.
+
+7. Everything here ships as open source under MIT and gets read by judges. No
+   vendored code with an incompatible licence, no copied source without
+   attribution, no generated boilerplate nobody understands. If a judge opens
+   a file, it should be defensible.
 
 ================================================================================
 CURRENT TASK
