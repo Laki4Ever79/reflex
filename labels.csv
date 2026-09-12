@@ -1,4 +1,25 @@
 agent_said,user_wanted,situation,recurrence,expected
-"Done, the change is ready.","Always run the tests before telling me it's done.","Agent claimed a task complete without running the suite.",4,code
-"I sincerely apologize for the confusion, and I'm very sorry.","Stop over-apologizing. One short acknowledgement, then move on.","Agent made a small mistake and wrote three sentences of apology.",5,weights
-"I'll deploy to the staging environment at staging.internal.","Staging moved to stg-2.internal last week.","Agent used a stale hostname.",0,context
+"Done, the change is ready.","Always run the tests before telling me it's done.","Agent claimed a task complete without running the suite.",4,
+"I sincerely apologize for the confusion, and I'm very sorry.","Stop over-apologizing. One short acknowledgement, then move on.","Agent wrote three sentences of apology over a small mistake.",5,
+"I'll deploy to the staging environment at staging.internal.","Staging moved to stg-2.internal last week.","Agent used a stale hostname.",0,
+"Here is a long general explanation of the approach and the tradeoffs involved...","You're burning tokens and saying nothing. Be concise, put the relevant information in the first sentence.","Agent answered a direct question with several paragraphs of general framing.",6,
+"I've added the new instruction block to the system prompt.","The system prompt has to stay under 100 lines. Every addition needs a matching removal.","Agent appended to the prompt and pushed it past the budget.",4,
+"Starting work on the task now.","Whenever you start, read MEMORY.md first — other agents write things there.","Agent began work without loading shared state written by other sessions.",3,
+"I've pushed the fix to main.","Never push to main. Branch and open a PR.","Agent committed directly to the default branch.",7,
+"I ran pytest tests/ to check nothing broke.","Never run pytest tests/ blindly — those hit paid APIs. Use the allowlist or ask first.","Agent ran the full suite and triggered live OpenAI and ElevenLabs calls.",3,
+"Merging and deploying now since the fix is approved.","Merge and deploy each need explicit fresh approval. Approving a fix never implies them.","Agent treated approval of the code as approval to ship.",5,
+"Co-Authored-By: Claude <noreply@anthropic.com>","No AI attribution anywhere user-facing — commits or PR bodies.","Agent added attribution trailers to a commit.",3,
+"I'll add a feature flag so we can switch the old behavior back on.","No env flags or mode switches. Ship it as the only path, in one revertable PR.","Agent proposed a flag-guarded rollout for a behavior change.",4,
+"I've split this into four PRs, one per fix.","Keep related fixes on one branch. And don't reformat a file you're editing three lines of.","Agent fragmented one change set across several PRs.",3,
+"I wrote the implementation plan to docs/plan-2026-09-12.md.","Planning artifacts go in the gitignored scratch dir, never committed to the repo.","Agent committed a planning markdown.",4,
+"The token is in .env now.","Dev-ops secrets go in the system env, not .env.","Agent put an ops token in the project dotfile.",2,
+"I mocked the function so the test passes.","Mock the boundary below the feature, not the function your feature lives in — otherwise the test asserts on your own stub.","Agent stubbed the unit under test.",3,
+"The unit tests all pass, so this is safe to ship.","Don't frame tests as regression protection. Real agent behavior diverges from coverage constantly.","Agent used a green suite as a risk argument.",2,
+"I added a guard in three places so the fix definitely holds.","Make the minimum change. One fix, at the lowest layer.","Agent reinforced a single fix redundantly across the stack.",4,
+"I could use approach A or B — which do you prefer?","Run an empirical bake-off first. Don't ask me to pick blind.","Agent offered options instead of measuring them.",3,
+"Based on my reading of the code, the fix should be X.","Validate the premise against real call logs before writing code. Reading the code isn't enough.","Agent proposed a change without checking production data.",4,
+"Here are three options: (a) keep as-is, (b) override, (c) log as an open question.","The REQ doc already answers this. State it and proceed.","Agent posed options when the requirement was authoritative.",3,
+"The agent should say 'U redu.' while the tool runs.","Fillers must signal waiting — 'Samo trenutak', not an acknowledgement. An ack tells the caller the exchange is over.","Agent chose an acknowledgement as a latency filler.",2,
+"The staging droplet is at the usual address.","Staging is root@165.22.70.178, repo at /root/livekit-vox-agent.","Agent was vague about infrastructure it should know.",0,
+"I'll reconstruct the email from the partial transcript.","When deterministic capture fails, decline and defer to readback. Never reconstruct — it fabricates valid-looking values.","Agent guessed at a value rather than declining.",3,
+"agent_monolith.py needs the same fix.","That file is dead. The live agent is agent.py plus the MCP servers.","Agent edited a pre-MCP file that runs nothing.",2,
