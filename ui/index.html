@@ -1,70 +1,249 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>reflex — live board</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reflex — correct it once</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#0c1220;--panel:#131b2c;--raised:#182338;--border:#24304a;
+  --text:#e7ecf3;--muted:#7c8aa0;--dim:#3d4a66;
+  --code:#e8a33d;--weights:#9b6bff;--context:#4fd1c5;
+  --fd:'Space Grotesk',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--fd);
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.mono{font-family:var(--fm)}
+
+header{padding:14px 22px;border-bottom:1px solid var(--border);
+  display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;flex-shrink:0}
+
+/* hero — the pitch, until you start using it */
+#hero{flex-shrink:0;overflow:hidden;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#0f1626 0%,var(--bg) 100%);
+  max-height:260px;transition:max-height .5s ease,opacity .4s ease,border-color .4s}
+#hero.gone{max-height:0;opacity:0;border-color:transparent}
+.hin{padding:26px 22px 24px;max-width:860px;margin:0 auto;
+  display:flex;flex-direction:column;gap:13px}
+.tag{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.025em;
+  line-height:1.1;text-wrap:balance;margin:0}
+.tag em{font-style:normal;color:var(--weights)}
+.lede{font-size:14.5px;line-height:1.6;color:#9fb0c6;max-width:62ch;margin:0}
+.lede b{color:var(--text);font-weight:500}
+.three{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--fm);font-size:10.5px;letter-spacing:.09em;padding:5px 10px;
+  border:1px solid var(--border);display:flex;gap:7px;align-items:center}
+.chip i{width:7px;height:7px;border-radius:50%;font-style:normal}
+.chip.c i{background:var(--code)}.chip.w i{background:var(--weights)}.chip.x i{background:var(--context)}
+.chip span{color:var(--muted)}
+.brand{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.sub{font-size:13px;color:var(--muted)}
+.sub b{color:#9fb0c6;font-weight:400}
+
+#split{flex:1;display:flex;min-height:0}
+
+/* ---- conversation ---- */
+#left{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#log{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:15px}
+.msg{display:flex;flex-direction:column;gap:4px;max-width:86%}
+.msg .who{font-family:var(--fm);font-size:9.5px;letter-spacing:.15em;color:var(--muted)}
+.msg .body{font-size:14.5px;line-height:1.55;white-space:pre-wrap}
+.msg.you{align-self:flex-end;align-items:flex-end}
+.msg.you .body{background:var(--raised);padding:10px 13px;border-radius:10px 10px 2px 10px}
+.msg.bot .body{color:#dbe3ee}
+.msg.corrected .body{border-left:3px solid var(--dim);padding-left:11px}
+.msg.lane-code .body{border-left-color:var(--code)}
+.msg.lane-weights .body{border-left-color:var(--weights)}
+.msg.lane-context .body{border-left-color:var(--context)}
+.msg .tagline{font-family:var(--fm);font-size:9px;letter-spacing:.13em;
+  padding:2px 6px;color:#0c1220;align-self:flex-start;margin-top:3px}
+.msg.lane-code .tagline{background:var(--code)}
+.msg.lane-weights .tagline{background:var(--weights)}
+.msg.lane-context .tagline{background:var(--context)}
+
+/* typing — in the message, not the corner */
+.typing{display:flex;gap:5px;align-items:center;padding:4px 0}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);
+  animation:blip 1.1s ease-in-out infinite}
+.typing i:nth-child(2){animation-delay:.16s}
+.typing i:nth-child(3){animation-delay:.32s}
+@keyframes blip{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+
+.hint{align-self:center;font-size:12.5px;color:var(--muted);text-align:center;
+  max-width:520px;line-height:1.7;margin:auto 0}
+.try{background:none;border:none;color:var(--context);cursor:pointer;font:inherit;
+  text-decoration:underline;padding:0}
+
+form{padding:12px 22px;border-top:1px solid var(--border);background:#0a0f1b;
+  display:flex;gap:8px;align-items:center;flex-shrink:0}
+input{flex:1;padding:12px 14px;background:var(--bg);border:1px solid #2a3240;
+  color:var(--text);font:inherit;font-size:14.5px;border-radius:6px}
+input:focus{outline:none;border-color:var(--weights)}
+button{padding:12px 15px;border-radius:6px;border:1px solid #2a3240;
+  background:var(--raised);color:var(--text);font:inherit;font-size:14px;cursor:pointer}
+button.go{background:var(--weights);border-color:var(--weights);color:#0c1220;font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+
+/* ---- the pipeline, on the side ---- */
+#right{width:376px;flex-shrink:0;border-left:1px solid var(--border);background:#0a0f1b;
+  display:flex;flex-direction:column;min-height:0}
+.rhead{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;
+  align-items:center;gap:9px}
+.rhead .k{font-family:var(--fm);font-size:9.5px;letter-spacing:.16em;color:var(--muted)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--dim);margin-left:auto}
+.pulse.on{background:var(--code);animation:thump 1s ease-in-out infinite}
+@keyframes thump{50%{opacity:.3}}
+#stages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:0}
+.idle{font-size:12.5px;color:var(--dim);line-height:1.65;margin:auto 0;text-align:center}
+
+.stage{display:grid;grid-template-columns:16px 1fr;gap:10px;padding-bottom:14px;
+  position:relative;animation:in .3s ease}
+@keyframes in{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.stage:not(:last-child)::before{content:"";position:absolute;left:7px;top:16px;bottom:0;
+  width:1px;background:var(--border)}
+.pip{width:15px;height:15px;border-radius:50%;border:2px solid var(--dim);
+  background:var(--bg);margin-top:1px;z-index:1}
+.stage.done .pip{border-color:var(--context);background:var(--context)}
+#stages.as-code .stage.done .pip{border-color:var(--code);background:var(--code)}
+#stages.as-weights .stage.done .pip{border-color:var(--weights);background:var(--weights)}
+#stages.as-context .stage.done .pip{border-color:var(--context);background:var(--context)}
+#stages.as-code .stage:not(:last-child)::before{background:#3a2c15}
+#stages.as-weights .stage:not(:last-child)::before{background:#2e2450}
+#stages.as-context .stage:not(:last-child)::before{background:#14332e}
+.stage.run .pip{border-color:var(--code);animation:thump 1s ease-in-out infinite}
+.stage.miss .pip{border-color:var(--dim);background:var(--dim)}
+.sbody{display:flex;flex-direction:column;gap:4px;min-width:0}
+.st{font-size:12.5px;color:#c3cdda;line-height:1.4}
+.sd{font-size:11.5px;color:var(--muted);line-height:1.5;word-break:break-word}
+.sd.code{font-family:var(--fm);font-size:10.5px;color:#9fb0c6;background:#0f1626;
+  padding:7px 9px;border:1px solid var(--border);white-space:pre-wrap}
+.lane-pill{display:inline-block;font-family:var(--fm);font-size:10px;font-weight:600;
+  letter-spacing:.12em;padding:3px 8px;color:#0c1220}
+.lane-pill.code{background:var(--code)}
+.lane-pill.weights{background:var(--weights)}
+.lane-pill.context{background:var(--context)}
+.dots{display:flex;gap:4px;align-items:center;margin-top:2px}
+.rdot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.rdot.seen{background:var(--muted)}
+.rdot.on{width:11px;height:11px;background:var(--weights);box-shadow:0 0 0 3px rgba(155,107,255,.2)}
+
+.rfoot{border-top:1px solid var(--border);padding:11px 16px;display:flex;
+  flex-direction:column;gap:9px;flex-shrink:0}
+.tot{display:flex;gap:7px}
+.tot > div{flex:1;padding:9px 9px 7px;background:var(--panel);border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden;
+  transition:border-color .4s,background .4s}
+.tot .n{font-family:var(--fm);font-size:22px;font-weight:600;line-height:1;
+  font-variant-numeric:tabular-nums;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.tot .l{font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;color:var(--muted)}
+.tot .code .n{color:var(--code)}.tot .weights .n{color:var(--weights)}.tot .context .n{color:var(--context)}
+.tot .fill{position:absolute;left:0;bottom:0;height:2px;width:0;transition:width .6s ease}
+.tot .code .fill{background:var(--code)}
+.tot .weights .fill{background:var(--weights)}
+.tot .context .fill{background:var(--context)}
+
+/* a lane gaining one should be impossible to miss */
+.tot > div.bump .n{transform:scale(1.45)}
+.tot > div.bump{background:var(--raised)}
+.tot .code.bump{border-color:var(--code);box-shadow:0 0 0 1px var(--code) inset}
+.tot .weights.bump{border-color:var(--weights);box-shadow:0 0 0 1px var(--weights) inset}
+.tot .context.bump{border-color:var(--context);box-shadow:0 0 0 1px var(--context) inset}
+.pop{position:absolute;right:8px;top:7px;font-family:var(--fm);font-size:11px;
+  font-weight:600;opacity:0;pointer-events:none}
+.tot .code .pop{color:var(--code)}
+.tot .weights .pop{color:var(--weights)}
+.tot .context .pop{color:var(--context)}
+@keyframes rise{0%{opacity:0;transform:translateY(4px)}
+  25%{opacity:1;transform:translateY(0)}
+  100%{opacity:0;transform:translateY(-12px)}}
+.pop.go{animation:rise 1.3s ease forwards}
+.tax{display:flex;flex-direction:column;gap:5px}
+.tl{display:flex;justify-content:space-between;font-size:11px;color:#c3cdda}
+.tl.dim{color:var(--muted)}
+.tl .mono{font-size:11.5px;font-weight:600}
+#tok-now{color:var(--context)}#tok-all{color:var(--code)}
+.tbar{height:6px;background:#0f1626;border:1px solid var(--border);overflow:hidden}
+.tbar div{height:100%;background:var(--context);width:0;transition:width .5s}
+#replay{display:none;padding:9px;font-size:12.5px;width:100%}
+#replay.show{display:block}
+
+@media(max-width:900px){
+  #split{flex-direction:column}
+  #right{width:auto;border-left:none;border-top:1px solid var(--border);max-height:44vh}
+}
+</style>
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="brand">reflex</div>
-    <div class="topbar-metrics">
-      <div class="metric">
-        <span class="metric-label">adapter</span>
-        <span class="metric-value" id="adapter-version">—</span>
-      </div>
-      <div class="metric">
-        <span class="metric-label">training queue</span>
-        <span class="metric-value" id="queue-depth">0</span>
+<header>
+  <div class="brand">reflex</div>
+  <div class="sub">Talk to the agent. <b>Correct it when it slips — the pipeline on the right shows where the correction goes.</b></div>
+</header>
+
+<div id="hero"><div class="hin">
+  <p class="tag">Every reflex was <em>learned once</em>.</p>
+  <p class="lede">Every AI that learns from you writes it down &mdash; and then re-reads that
+    note on every call you ever make again. <b>Agents get more expensive the better they know
+    you.</b> Reflex decides where each correction actually belongs, so the ones that shouldn&rsquo;t
+    be notes stop being notes.</p>
+  <div class="three">
+    <span class="chip c"><i></i>CODE<span>a function it can&rsquo;t get wrong</span></span>
+    <span class="chip w"><i></i>WEIGHTS<span>trained in &mdash; free to use</span></span>
+    <span class="chip x"><i></i>CONTEXT<span>a note, re-read every time</span></span>
+  </div>
+</div></div>
+
+<div id="split">
+  <div id="left">
+    <div id="log">
+      <div class="hint">
+        Ask for something, then tell it off when it slips.<br>
+        Try <button class="try" data-t="Add a retry to the upload function.">ask for a change</button>,
+        then <button class="try" data-t="You keep saying it's done without running the tests. Run the suite before telling me a change is ready.">correct it</button>.
       </div>
     </div>
-  </header>
+    <form id="bar">
+      <input id="msg" placeholder="Say something to the agent…" autocomplete="off" required>
+      <button class="go" id="go" type="submit">Send</button>
+      <button id="reset" type="button" title="Restore the starting state">Reset</button>
+    </form>
+  </div>
 
-  <div class="inbox" id="inbox" aria-live="polite"></div>
-
-  <main class="board">
-
-    <section class="lane" data-lane="code">
-      <div class="lane-head">
-        <h2>code</h2>
-        <p class="lane-sub">deterministic — promises, doesn't bias</p>
-        <div class="lane-stat"><span id="code-stat">0</span> tools live</div>
+  <div id="right">
+    <div class="rhead">
+      <span class="k">PIPELINE</span>
+      <span class="pulse" id="pulse"></span>
+    </div>
+    <div id="stages">
+      <div class="idle">Every turn is watched.<br>Nothing fires unless you correct the agent.</div>
+    </div>
+    <div class="rfoot">
+      <div class="tot">
+        <div class="code"><span class="n" id="t-code">0</span><span class="l">CODE</span>
+          <span class="pop" id="p-code">+1</span><span class="fill" id="f-code-bar"></span></div>
+        <div class="weights"><span class="n" id="t-weights">0</span><span class="l">WEIGHTS</span>
+          <span class="pop" id="p-weights">+1</span><span class="fill" id="f-weights-bar"></span></div>
+        <div class="context"><span class="n" id="t-context">0</span><span class="l">CONTEXT</span>
+          <span class="pop" id="p-context">+1</span><span class="fill" id="f-context-bar"></span></div>
       </div>
-      <div class="lane-items" id="code-items"></div>
-    </section>
-
-    <section class="lane" data-lane="weights">
-      <div class="lane-head">
-        <h2>weights</h2>
-        <p class="lane-sub">learned behaviours only</p>
-        <div class="lane-stat"><span id="weights-stat">0</span>/<span id="weights-threshold">50</span> queued</div>
+      <div class="tax">
+        <div class="tl">
+          <span>carried on every call</span>
+          <span class="mono" id="tok-now">&mdash;</span>
+        </div>
+        <div class="tbar"><div id="tok-fill"></div></div>
+        <div class="tl dim">
+          <span>if every correction were a note</span>
+          <span class="mono" id="tok-all">&mdash;</span>
+        </div>
       </div>
-      <div class="lane-items" id="weights-items"></div>
-    </section>
+      <button id="replay">Ask the same thing again &mdash; did it listen?</button>
+    </div>
+  </div>
+</div>
 
-    <section class="lane" data-lane="context">
-      <div class="lane-head">
-        <h2>context</h2>
-        <p class="lane-sub">last resort — taxed on every read</p>
-        <div class="lane-stat"><span id="context-stat">0</span> tokens</div>
-      </div>
-      <div class="lane-items" id="context-items"></div>
-    </section>
-
-  </main>
-
-  <footer class="statusbar">
-    <span id="conn-status" class="status-dot status-mock"></span>
-    <span id="conn-label">mock data — not connected to a live pipeline</span>
-  </footer>
-
-  <script src="app.js"></script>
-  <script src="submit.js"></script>
-  <script src="chat.js"></script>
+<script src="live.js"></script>
 </body>
 </html>

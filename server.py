@@ -79,52 +79,6 @@ def state():
     return JSONResponse(load(), headers={"Cache-Control": "no-store"})
 
 
-@app.post("/correct")
-async def correct(req: Request):
-    ip = _client_ip(req)
-    if not _rate_ok(ip):
-        return JSONResponse(
-            {"error": "rate_limited",
-             "message": f"{RATE_LIMIT} corrections per {RATE_WINDOW // 60} minutes. "
-                        "Every correction costs real model calls."},
-            status_code=429,
-        )
-
-    body = await req.json()
-    said = (body.get("agent_said") or "").strip()[:MAX_FIELD]
-    wanted = (body.get("user_wanted") or "").strip()[:MAX_FIELD]
-    situation = (body.get("situation") or "").strip()[:MAX_FIELD]
-
-    if not wanted:
-        return JSONResponse(
-            {"error": "empty", "message": "Tell the agent what you wanted instead."},
-            status_code=400,
-        )
-
-    try:
-        a = allocate_and_store(
-            Correction(agent_said=said, user_wanted=wanted,
-                       situation=situation, recurrence=0)
-        )
-    except AllocationError as e:
-        # never fall back to a lane: a default would silently void the claim
-        return JSONResponse(
-            {"error": "allocation_failed", "message": str(e)}, status_code=502
-        )
-    except Exception as e:  # noqa: BLE001
-        return JSONResponse(
-            {"error": "server_error", "message": f"{type(e).__name__}: {e}"},
-            status_code=500,
-        )
-
-    return {
-        "lane": a.lane,
-        "rationale": a.rationale,
-        "confidence": a.confidence,
-        "state": load(),
-    }
-
-
 @app.post("/chat")
 async def chat(req: Request):
     """The agent's reply, and nothing else. ONE model call, so it comes back fast.
@@ -299,39 +253,6 @@ def reset():
         cwd=ROOT, check=False, capture_output=True, timeout=300,
     )
     return {"ok": True, "source": "replayed", "state": load()}
-
-
-@app.post("/chat")
-def chat_endpoint(req: Request, body: dict):
-    """Talk to the current adapter directly. Sync def on purpose - run_chat()
-    blocks (it polls a Daytona sandbox), and a sync route runs in Starlette's
-    threadpool instead of the event loop, so a slow generation doesn't stall
-    /state.json polling for everyone else watching the dashboard."""
-    ip = _client_ip(req)
-    if not _rate_ok(ip):
-        return JSONResponse(
-            {"error": "rate_limited",
-             "message": f"{RATE_LIMIT} requests per {RATE_WINDOW // 60} minutes "
-                        "(shared with /correct - both cost real model calls)."},
-            status_code=429,
-        )
-
-    prompt = (body.get("prompt") or "").strip()[:MAX_FIELD]
-    if not prompt:
-        return JSONResponse(
-            {"error": "empty", "message": "Say something to the agent."}, status_code=400
-        )
-
-    try:
-        response = run_chat(prompt)
-    except TimeoutError as e:
-        return JSONResponse({"error": "timeout", "message": str(e)}, status_code=504)
-    except Exception as e:  # noqa: BLE001
-        return JSONResponse(
-            {"error": "inference_failed", "message": f"{type(e).__name__}: {e}"},
-            status_code=500,
-        )
-    return {"response": response}
 
 
 @app.get("/health")

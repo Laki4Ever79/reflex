@@ -196,6 +196,7 @@ async function send(text, isReplay) {
   $("go").disabled = true;
   $("replay").classList.remove("show");
   document.querySelector(".hint")?.remove();
+  document.getElementById("hero")?.classList.add("gone");  // pitch yields to the product
 
   const sentText = text;
   addMsg("you", text);
