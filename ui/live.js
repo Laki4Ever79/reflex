@@ -74,6 +74,12 @@ function setTax(state) {
 
 const _prev = { code: null, weights: null, context: null };
 
+function totalsOf(state) {
+  const t = { code: 0, weights: 0, context: 0 };
+  (state?.corrections || []).forEach((c) => { if (t[c.lane] !== undefined) t[c.lane]++; });
+  return t;
+}
+
 function countUp(el, from, to) {
   if (from === to) { el.textContent = to; return; }
   const t0 = performance.now(), dur = 450;
@@ -275,10 +281,17 @@ $("reset").addEventListener("click", async () => {
   if (!confirm("Reset wipes every correction made since the demo started — for everyone on this link. Continue?")) return;
   busy = true;
   try {
-    await fetch("/reset", { method: "POST" });
+    const res = await fetch("/reset", { method: "POST" });
+    const d = await res.json().catch(() => ({}));
     messages = []; lastAsk = null; pendingAsk = null;
     log.innerHTML = "";
     clearStages();
+    // the server has already rolled back — show what it rolled back TO
+    if (d.state) {
+      _prev.code = _prev.weights = _prev.context = null;  // a drop must not fire the bump
+      setTotals(totalsOf(d.state));
+      setTax(d.state);
+    }
     stages.innerHTML =
       '<div class="idle">Every turn is watched.<br>Nothing fires unless you correct the agent.</div>';
     $("replay").classList.remove("show");
@@ -293,9 +306,7 @@ log.addEventListener("click", (e) => {
 fetch("/state.json", { cache: "no-store" })
   .then((r) => r.json())
   .then((s) => {
-    const t = { code: 0, weights: 0, context: 0 };
-    (s.corrections || []).forEach((c) => { if (t[c.lane] !== undefined) t[c.lane]++; });
-    setTotals(t);
+    setTotals(totalsOf(s));
     setTax(s);
   })
   .catch(() => {});
