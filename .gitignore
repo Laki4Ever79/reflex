@@ -13,10 +13,9 @@ build/
 .next/
 *.log
 
-# adapters + training artifacts
-adapters/
+# training artifacts (adapters/ IS committed on purpose — the demo needs the
+# trained weights available to whichever machine runs the live dashboard)
 lanes/weights/queue.jsonl
-*.safetensors
 *.gguf
 checkpoints/
 wandb/
