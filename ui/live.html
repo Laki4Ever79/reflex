@@ -34,7 +34,15 @@ header{padding:14px 22px;border-bottom:1px solid var(--border);
 .msg.you{align-self:flex-end;align-items:flex-end}
 .msg.you .body{background:var(--raised);padding:10px 13px;border-radius:10px 10px 2px 10px}
 .msg.bot .body{color:#dbe3ee}
-.msg.corrected .body{border-left:2px solid var(--code);padding-left:11px}
+.msg.corrected .body{border-left:3px solid var(--dim);padding-left:11px}
+.msg.lane-code .body{border-left-color:var(--code)}
+.msg.lane-weights .body{border-left-color:var(--weights)}
+.msg.lane-context .body{border-left-color:var(--context)}
+.msg .tagline{font-family:var(--fm);font-size:9px;letter-spacing:.13em;
+  padding:2px 6px;color:#0c1220;align-self:flex-start;margin-top:3px}
+.msg.lane-code .tagline{background:var(--code)}
+.msg.lane-weights .tagline{background:var(--weights)}
+.msg.lane-context .tagline{background:var(--context)}
 
 /* typing — in the message, not the corner */
 .typing{display:flex;gap:5px;align-items:center;padding:4px 0}
@@ -79,6 +87,12 @@ button:disabled{opacity:.45;cursor:default}
 .pip{width:15px;height:15px;border-radius:50%;border:2px solid var(--dim);
   background:var(--bg);margin-top:1px;z-index:1}
 .stage.done .pip{border-color:var(--context);background:var(--context)}
+#stages.as-code .stage.done .pip{border-color:var(--code);background:var(--code)}
+#stages.as-weights .stage.done .pip{border-color:var(--weights);background:var(--weights)}
+#stages.as-context .stage.done .pip{border-color:var(--context);background:var(--context)}
+#stages.as-code .stage:not(:last-child)::before{background:#3a2c15}
+#stages.as-weights .stage:not(:last-child)::before{background:#2e2450}
+#stages.as-context .stage:not(:last-child)::before{background:#14332e}
 .stage.run .pip{border-color:var(--code);animation:thump 1s ease-in-out infinite}
 .stage.miss .pip{border-color:var(--dim);background:var(--dim)}
 .sbody{display:flex;flex-direction:column;gap:4px;min-width:0}

@@ -29,7 +29,12 @@ function addMsg(who, text, cls) {
 
 // ---- pipeline panel --------------------------------------------------------
 
-function clearStages() { stages.innerHTML = ""; }
+function clearStages() {
+  stages.innerHTML = "";
+  stages.className = "";
+}
+
+function tintPanel(lane) { stages.className = "as-" + lane; }
 
 function stage(state, title, detail, opts = {}) {
   const el = document.createElement("div");
@@ -96,6 +101,7 @@ function renderObserve(d) {
         `${d.count}× this kind of correction`,
         { html: dotsHtml(d.count, d.threshold) });
 
+  tintPanel(d.lane);
   stage("done", "Routed",
         d.rationale,
         { html: `<div><span class="lane-pill ${d.lane}">${d.lane.toUpperCase()}</span></div>` });
@@ -207,7 +213,14 @@ async function send(text, isReplay) {
     const prior = messages.filter((m) => m.role === "user");
     lastAsk = prior.length >= 2 ? prior[prior.length - 2].content : null;
     if (lastAsk) $("replay").classList.add("show");
-    log.lastElementChild?.classList.add("corrected");
+    const mine = [...log.querySelectorAll(".msg.you")].pop();
+    if (mine && d.lane) {
+      mine.classList.add("corrected", "lane-" + d.lane);
+      const t = document.createElement("span");
+      t.className = "tagline";
+      t.textContent = "\u2192 " + d.lane.toUpperCase();
+      mine.appendChild(t);
+    }
   } else {
     lastAsk = pendingAsk;
   }
