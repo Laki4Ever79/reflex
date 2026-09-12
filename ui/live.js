@@ -302,6 +302,11 @@ $("reset").addEventListener("click", async () => {
   } finally { busy = false; }
 });
 
+document.getElementById("start")?.addEventListener("click", () => {
+  document.getElementById("hero")?.classList.add("gone");
+  $("msg").focus();
+});
+
 log.addEventListener("click", (e) => {
   const b = e.target.closest(".card, .try");
   if (b) { $("msg").value = b.dataset.t; $("msg").focus(); }

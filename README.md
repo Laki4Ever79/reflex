@@ -2,12 +2,13 @@
 
 **Every reflex was learned once.**
 
-> ### Correct it three times and it stops being a note — it gets **trained in**.
+> ### Fixed on the next turn. Then it stops costing you anything.
 >
-> Every other agent remembers what you told it, and pays for that memory on
-> every call forever. Reflex decides which corrections are worth *learning* —
-> and every so often it retrains itself on them, in an 18 MB file that is 1.5%
-> of the model it steers.
+> Correct the agent and the fix applies immediately — every agent can do that
+> much. The difference is what happens next: every other agent keeps that fix as
+> a note and re-reads it on every call forever. Reflex notices when a correction
+> has become a pattern and **retrains on it**, into an 18 MB adapter, where it
+> costs nothing to use.
 >
 > Your corrections and your adapter stay yours — what's shared between users is
 > only the *policy* for where a correction belongs, never what anybody wrote.
@@ -118,6 +119,17 @@ principle  →  ~12 preference pairs  →  queue
                           ▼                          ▼
                        promote                  discard, keep vN
 ```
+
+**The threshold is not a delay.** A correction is live from the moment you make
+it — at recurrence 0 it goes to context and changes the very next answer. What
+`recurrence >= 3` decides is not *whether* the fix applies but *where it lives*:
+after the third time, it stops being a note you pay tokens for on every call and
+becomes part of the model, where reading it is free. Promotion, not probation.
+
+Three is the smallest count that separates "twice could be coincidence" from
+"this is how they want it" — and it is a config value in `contracts.py`, not a
+law. A one-off correction can be situational; three across different situations
+tells you what generalises and what was just the moment.
 
 **Triggered by queue depth, not by a clock.** Nothing burns a GPU because it is
 3am and two corrections came in. The system consolidates when there is something
