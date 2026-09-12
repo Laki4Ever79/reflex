@@ -1,13 +1,13 @@
 [
   {
     "version": 1,
-    "path": "/home/ljovic/repo/grok-bot-hackhaton/reflex/lanes/weights/adapters/v1/adapter_out",
+    "path": "/home/aleksa/Documents/grokbot-hackathon/reflex/lanes/weights/adapters/v1/adapter_out",
     "trained_on": 3,
     "parent": null
   },
   {
     "version": 2,
-    "path": "/home/ljovic/repo/grok-bot-hackhaton/reflex/lanes/weights/adapters/v2/adapter_out",
+    "path": "/home/aleksa/Documents/grokbot-hackathon/reflex/lanes/weights/adapters/v2/adapter_out",
     "trained_on": 12,
     "parent": 1
   }

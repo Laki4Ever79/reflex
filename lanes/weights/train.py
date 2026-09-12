@@ -50,8 +50,22 @@ def _load_registry() -> list[dict]:
 
 
 def latest_adapter() -> Adapter | None:
+    """Newest adapter, with its path resolved against THIS checkout.
+
+    The registry records the absolute path of whichever machine trained the
+    adapter, which is fine for the trainer and useless everywhere else - on any
+    other checkout that directory does not exist, the upload to the sandbox
+    silently sends nothing, and peft falls through to HuggingFace looking for a
+    repo called "adapter". Derive the path from the version instead.
+    """
     entries = _load_registry()
-    return Adapter(**entries[-1]) if entries else None
+    if not entries:
+        return None
+    e = dict(entries[-1])
+    local = ADAPTERS_DIR / f"v{e['version']}" / "adapter_out"
+    if local.is_dir():
+        e["path"] = str(local)
+    return Adapter(**e)
 
 
 def _next_version() -> tuple[int, int | None]:
