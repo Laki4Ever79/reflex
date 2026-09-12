@@ -113,11 +113,33 @@ button:disabled{opacity:.45;cursor:default}
 .rfoot{border-top:1px solid var(--border);padding:11px 16px;display:flex;
   flex-direction:column;gap:9px;flex-shrink:0}
 .tot{display:flex;gap:7px}
-.tot div{flex:1;padding:7px 8px;background:var(--panel);border:1px solid var(--border);
-  display:flex;flex-direction:column;gap:2px}
-.tot .n{font-family:var(--fm);font-size:15px;font-weight:600}
+.tot > div{flex:1;padding:9px 9px 7px;background:var(--panel);border:1px solid var(--border);
+  display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden;
+  transition:border-color .4s,background .4s}
+.tot .n{font-family:var(--fm);font-size:22px;font-weight:600;line-height:1;
+  font-variant-numeric:tabular-nums;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
 .tot .l{font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;color:var(--muted)}
 .tot .code .n{color:var(--code)}.tot .weights .n{color:var(--weights)}.tot .context .n{color:var(--context)}
+.tot .fill{position:absolute;left:0;bottom:0;height:2px;width:0;transition:width .6s ease}
+.tot .code .fill{background:var(--code)}
+.tot .weights .fill{background:var(--weights)}
+.tot .context .fill{background:var(--context)}
+
+/* a lane gaining one should be impossible to miss */
+.tot > div.bump .n{transform:scale(1.45)}
+.tot > div.bump{background:var(--raised)}
+.tot .code.bump{border-color:var(--code);box-shadow:0 0 0 1px var(--code) inset}
+.tot .weights.bump{border-color:var(--weights);box-shadow:0 0 0 1px var(--weights) inset}
+.tot .context.bump{border-color:var(--context);box-shadow:0 0 0 1px var(--context) inset}
+.pop{position:absolute;right:8px;top:7px;font-family:var(--fm);font-size:11px;
+  font-weight:600;opacity:0;pointer-events:none}
+.tot .code .pop{color:var(--code)}
+.tot .weights .pop{color:var(--weights)}
+.tot .context .pop{color:var(--context)}
+@keyframes rise{0%{opacity:0;transform:translateY(4px)}
+  25%{opacity:1;transform:translateY(0)}
+  100%{opacity:0;transform:translateY(-12px)}}
+.pop.go{animation:rise 1.3s ease forwards}
 .tax{display:flex;flex-direction:column;gap:5px}
 .tl{display:flex;justify-content:space-between;font-size:11px;color:#c3cdda}
 .tl.dim{color:var(--muted)}
@@ -167,9 +189,12 @@ button:disabled{opacity:.45;cursor:default}
     </div>
     <div class="rfoot">
       <div class="tot">
-        <div class="code"><span class="n" id="t-code">0</span><span class="l">CODE</span></div>
-        <div class="weights"><span class="n" id="t-weights">0</span><span class="l">WEIGHTS</span></div>
-        <div class="context"><span class="n" id="t-context">0</span><span class="l">CONTEXT</span></div>
+        <div class="code"><span class="n" id="t-code">0</span><span class="l">CODE</span>
+          <span class="pop" id="p-code">+1</span><span class="fill" id="f-code-bar"></span></div>
+        <div class="weights"><span class="n" id="t-weights">0</span><span class="l">WEIGHTS</span>
+          <span class="pop" id="p-weights">+1</span><span class="fill" id="f-weights-bar"></span></div>
+        <div class="context"><span class="n" id="t-context">0</span><span class="l">CONTEXT</span>
+          <span class="pop" id="p-context">+1</span><span class="fill" id="f-context-bar"></span></div>
       </div>
       <div class="tax">
         <div class="tl">

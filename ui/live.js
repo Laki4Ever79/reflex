@@ -72,11 +72,43 @@ function setTax(state) {
   $("tok-fill").style.width = all ? Math.round((now / all) * 100) + "%" : "0%";
 }
 
+const _prev = { code: null, weights: null, context: null };
+
+function countUp(el, from, to) {
+  if (from === to) { el.textContent = to; return; }
+  const t0 = performance.now(), dur = 450;
+  (function step(now) {
+    const k = Math.min(1, (now - t0) / dur);
+    el.textContent = Math.round(from + (to - from) * k);
+    if (k < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
 function setTotals(t) {
   if (!t) return;
-  $("t-code").textContent = t.code ?? 0;
-  $("t-weights").textContent = t.weights ?? 0;
-  $("t-context").textContent = t.context ?? 0;
+  const total = (t.code || 0) + (t.weights || 0) + (t.context || 0);
+  for (const lane of ["code", "weights", "context"]) {
+    const now = t[lane] ?? 0;
+    const was = _prev[lane];
+    const num = $("t-" + lane);
+    const tile = num.parentElement;
+
+    countUp(num, was == null ? now : was, now);
+    const bar = document.getElementById("f-" + lane + "-bar");
+    if (bar) bar.style.width = total ? Math.round((now / total) * 100) + "%" : "0%";
+
+    // a lane that just gained one should be impossible to miss
+    if (was != null && now > was) {
+      const pop = $("p-" + lane);
+      pop.textContent = "+" + (now - was);
+      pop.classList.remove("go");
+      void pop.offsetWidth;
+      pop.classList.add("go");
+      tile.classList.add("bump");
+      setTimeout(() => tile.classList.remove("bump"), 620);
+    }
+    _prev[lane] = now;
+  }
 }
 
 function renderObserve(d) {
