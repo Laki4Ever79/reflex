@@ -1,0 +1,2 @@
+openai>=2.0
+daytona>=0.211

@@ -15,82 +15,79 @@ HOW TO USE IT
 ================================================================================
 
 ================================================================================
+
+================================================================================
 CURRENT TASK
 ================================================================================
 
-Batch run on 24 real corrections: 88% agreement (21/24). One genuine defect.
+The recurrence fix worked — rows 16 and 21 now correctly say context and quote
+the arithmetic. But two consecutive batch runs on IDENTICAL input, one minute
+apart, at temperature=0, gave different answers:
 
-FIX FIRST — the allocator talks itself over the recurrence threshold.
+    run A: 22/24   disagreements: 16, and one code->context
+    run B: 21/24   disagreements: 10, 14, 16
 
-  Row 21, recurrence=2, rationale said:
-      "recurrence >= 2, third occurrence"
-  Row 16, recurrence=2, rationale said:
-      "recurrence 2 means this is the third occurrence"
+Row 10 agreed in A and disagreed in B. The allocator is unstable on borderline
+rows, and both flipping rows are ones where the CODE test and the RECURRENCE
+test both fire:
 
-  The threshold is 3. Both rows have 2. The model is reinterpreting the count
-  to cross the line. Row 16 scored as AGREE, so a coincidental match is masking
-  a systematic error — the metric looks fine while the gate is broken.
+  row 10  "no AI attribution in commits"    checkable AND recurrence 3
+          -> went code in A, weights in B
+  row 14  "ops tokens in system env"        checkable AND a policy fact
+          -> went code in A, context in B
 
-  The recurrence gate is the only thing making the weights lane non-arbitrary.
-  If the model can argue past it, that lane has no policy behind it.
+FIX — make step 1 terminal.
 
-  Fix in allocator/prompt.txt:
-    - State the test as arithmetic, not judgement: WEIGHTS requires
-      recurrence >= 3. recurrence is a COUNT OF PRIOR OCCURRENCES, already
-      computed. Do not reinterpret it, do not add one for "this occurrence",
-      do not reason about ordinals.
-    - Say explicitly: recurrence 0, 1 or 2 CANNOT be weights, regardless of how
-      behavioural the correction is. It goes to context and is promoted later
-      when it recurs.
-    - Require the rationale to quote the number when the weights lane is chosen.
+  The decision order already says CODE is checked first. It is not behaving as
+  terminal: the model evaluates all three and picks, so when two tests fire the
+  answer depends on sampling.
 
-  Then re-run: python -m allocator.batch labels.csv
-  Row 21 must become context. Row 16 must become context (it is currently
-  labelled weights in the CSV and both the label and the allocator are wrong —
-  leave the CSV alone, just confirm the allocator now says context).
+  In allocator/prompt.txt, restate step 1 as a gate that ENDS the decision:
 
-  Do NOT special-case these rows. Fix the rule.
+    - Step 1 is answered first and alone: is there a deterministic function
+      that can GUARANTEE this rule? Answer yes or no before considering
+      anything else.
+    - If yes, the lane is CODE. Stop. Do not evaluate recurrence. Do not
+      consider whether it is also behavioural. Recurrence is irrelevant to a
+      rule a function can guarantee.
+    - Only if step 1 is NO does recurrence get consulted at all.
+    - Require the rationale to state the step 1 answer explicitly, e.g.
+      "no function can guarantee this, so step 1 is no; recurrence=5 >= 3".
 
-WHY THIS MATTERS BEYOND THE NUMBER
-  Row 21 is the demo's best frame: the same correction routes to context at
-  recurrence 2 and to weights at 3. That only lands if the threshold is real.
+  This is the whole point of an ordered check rather than a score. Right now it
+  is behaving like a score.
 
-THEN — lanes/weights/gate.py
+VERIFY PROPERLY — one run is not evidence any more.
+  Run the batch THREE times and report all three agreement rates plus which
+  rows differ between runs. The target is not a higher number, it is the SAME
+  rows every time. A stable 21/24 beats a fluctuating 23/24.
 
-  evaluate(incumbent: Adapter | None, challenger: Adapter) -> GateVerdict
+  If rows still flip after the prompt fix, say so and stop rather than tuning
+  further — we will pin the demo rows instead.
 
-  Score both adapters on a held-out slice of corrections, promote only if the
-  challenger wins, return a verdict either way. Incumbent None means first
-  adapter: promote it, note that in the verdict.
+DO NOT
+  Special-case rows 10 or 14. Lower the temperature (already 0). Add a
+  majority-vote wrapper or retry-until-stable loop — that hides instability
+  instead of fixing it, and the dashboard would show a lie.
 
-  The scoring function can be a stub that takes an adapter and returns a float —
-  lanes/weights/ is not producing real adapters yet and may not today. Build the
-  decision logic and the verdict, not the model evaluation. Make a REJECTION
-  easy to trigger and clearly visible; a rejected cycle is a demo asset.
-
-DO NOT YET
-  Dashboard. Anything under lanes/code/ or lanes/context/.
+AFTER THAT
+  lanes/weights/gate.py is written but unreviewed. Leave it; it gets reviewed
+  next round.
 
 ================================================================================
 REVIEW NOTES
 ================================================================================
 
-Batch on 24 real corrections, 88% (21/24). Confusion: weights->code x2,
-context->weights x1. No errors, no unparseable rows.
+Recurrence fix: CORRECT. Rows 16 and 21 both route to context and the
+rationales now quote "recurrence=2 < 3". The arithmetic framing worked.
 
-TWO OF THE THREE DISAGREEMENTS, THE ALLOCATOR WAS RIGHT AND THE HUMAN LABEL
-WAS WRONG:
-  Row 9  (merge/deploy need fresh approval) -> allocator said code. Correct:
-         an approval gate is a deterministic precondition.
-  Row 23 (decline instead of reconstructing a value) -> allocator said code.
-         Correct: "is this present verbatim" is a check that can hard-refuse.
+Stability: NOT VERIFIED, and now known to be a problem. Two runs, different
+answers, same input, temperature 0. Any agreement number quoted from a single
+run is noise at the +/- 1 row level. This matters beyond the metric: if a demo
+row routes differently on stage than it did in rehearsal, that is the failure
+everyone in the room will see.
 
-  Do not tune the prompt toward these. The labels were wrong, not the policy.
-
-THE DISTRIBUTION IS A FINDING, NOT A PROBLEM:
-  weights 12, code 8, context 4. The lanes fan out, so the routing decision has
-  real stakes. This was the open question that would have killed the idea.
-
-STILL TRUE FROM EARLIER REVIEWS — do not regress:
-  no fallback lane; prompt read at call time; strict parsing; temperature 0;
-  no key in source.
+Row 16 note: the allocator says context and the CSV says weights. The CSV is
+wrong (recurrence=2). Leave the CSV alone — a known-wrong human label that the
+allocator correctly disagrees with is worth more in the video than a corrected
+one, and the confusion matrix should show it.

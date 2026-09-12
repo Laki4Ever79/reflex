@@ -90,3 +90,13 @@ that has to be caught. A demo where every cycle improves looks salted — showin
 Python 3.11+, dataclasses over dicts at boundaries, type hints on anything crossing
 a lane. No framework unless it earns its place. Keep the dashboard dependency-light —
 it is the thing being filmed, and a build step that breaks at 17:00 costs the video.
+
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+`daytona` is a real PyPI package and is required by the code lane. The Daytona MCP
+in your editor is a separate thing — having the MCP does not install the SDK, and
+the harness will show the code lane red until you `pip install`.

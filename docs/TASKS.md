@@ -63,6 +63,21 @@ resubmitting updates the same entry, so there's no reason to wait for it to be g
 > the incumbent. Return a `GateVerdict` either way — a rejection is a demo asset, so
 > make sure a rejected cycle is visible rather than silent.
 
+Lazar J — the GPU pivot
+
+  The Daytona credentials don't include GPU. We're not changing the idea, just where training runs.
+
+  
+Ask the Daytona people at the event for GPU access first. Five minutes, costs nothing, and if it works the original architecture survives intact.
+If not: free Colab or Kaggle T4, and shrink to Qwen3-1.7B. Here's the thing — we never needed live GPU. We need one training run, ever, plus maybe
+a second so the promotion gate has something to reject. Those don't happen on camera. Train once, commit the adapter, and the demo shows the queue
+filling and the behaviour changing.
+
+  So your lane is: synthesize() first (one principle → ~12 preference pairs via grok — this is what turns 20 corrections into 200+ examples, without it
+  a run won't move anything), then one real training run producing a versioned adapter.
+
+  DPO/ORPO, not SFT — a correction is already a preference pair. LoRA r=16, q/k/v/o_proj. Don't tune hyperparameters.
+
 **Start with the GPU smoke test before anything else:** sandbox up, `nvidia-smi`,
 `pip install unsloth`, a 20-step run on junk data. If GPU access needs a quota request
 you need to know that immediately, not at 15:00.
