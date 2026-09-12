@@ -135,6 +135,7 @@ a file you can revert.
 |---|---|
 | **x.ai** `grok-4.6` | the agent, the correction detector, the allocator, cluster assignment, training-pair synthesis |
 | **Daytona** | ephemeral sandboxes execute agent-written code; a persistent sandbox serves CPU inference for the tuned adapter |
+| **Convex** | the durable record. Render's disk is ephemeral, so every deploy would otherwise reset the demo to its seed — Convex holds every decision permanently and rehydrates local state on boot |
 | **Render** | hosts the live demo |
 
 Model-generated code never runs on our machines. That isolation is the point of
@@ -160,6 +161,7 @@ python -m allocator.batch labels.csv
 pip install -r requirements.txt
 export XAI_API_KEY=...        # required
 export DAYTONA_API_KEY=...    # required for the code lane
+export CONVEX_URL=...         # optional — durable history across restarts
 
 uvicorn server:app --reload   # http://127.0.0.1:8000
 python harness.py             # contract check across all lanes
@@ -181,6 +183,7 @@ allocator/           the routing decision — prompt.txt IS the policy
 lanes/context/       structured bullets, retrieved by cue
 lanes/code/          grok writes it, Daytona runs it, we register it
 lanes/weights/       synthesis, QLoRA training, inference, promotion gate
+convex/              schema + functions — the record that survives a deploy
 ui/                  the demo
 harness.py           one command, five contract probes
 ```
