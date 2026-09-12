@@ -30,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from allocator.allocate import AllocationError
 from allocator.store import STATE_PATH, allocate_and_store, load
 from contracts import Correction
+from lanes.weights.inference import chat as run_chat
 
 ROOT = Path(__file__).resolve().parent
 UI = ROOT / "ui"
@@ -126,6 +127,39 @@ def reset():
         cwd=ROOT, check=False, capture_output=True, timeout=300,
     )
     return {"ok": True, "source": "replayed", "state": load()}
+
+
+@app.post("/chat")
+def chat_endpoint(req: Request, body: dict):
+    """Talk to the current adapter directly. Sync def on purpose - run_chat()
+    blocks (it polls a Daytona sandbox), and a sync route runs in Starlette's
+    threadpool instead of the event loop, so a slow generation doesn't stall
+    /state.json polling for everyone else watching the dashboard."""
+    ip = _client_ip(req)
+    if not _rate_ok(ip):
+        return JSONResponse(
+            {"error": "rate_limited",
+             "message": f"{RATE_LIMIT} requests per {RATE_WINDOW // 60} minutes "
+                        "(shared with /correct - both cost real model calls)."},
+            status_code=429,
+        )
+
+    prompt = (body.get("prompt") or "").strip()[:MAX_FIELD]
+    if not prompt:
+        return JSONResponse(
+            {"error": "empty", "message": "Say something to the agent."}, status_code=400
+        )
+
+    try:
+        response = run_chat(prompt)
+    except TimeoutError as e:
+        return JSONResponse({"error": "timeout", "message": str(e)}, status_code=504)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse(
+            {"error": "inference_failed", "message": f"{type(e).__name__}: {e}"},
+            status_code=500,
+        )
+    return {"response": response}
 
 
 @app.get("/health")
