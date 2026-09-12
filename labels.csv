@@ -1,0 +1,4 @@
+agent_said,user_wanted,situation,recurrence,expected
+"Done, the change is ready.","Always run the tests before telling me it's done.","Agent claimed a task complete without running the suite.",4,code
+"I sincerely apologize for the confusion, and I'm very sorry.","Stop over-apologizing. One short acknowledgement, then move on.","Agent made a small mistake and wrote three sentences of apology.",5,weights
+"I'll deploy to the staging environment at staging.internal.","Staging moved to stg-2.internal last week.","Agent used a stale hostname.",0,context
