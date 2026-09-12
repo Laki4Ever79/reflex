@@ -6,8 +6,9 @@ const log = $("log"), stages = $("stages");
 
 let messages = [];
 let busy = false;
-let lastAsk = null;      // the request that preceded a correction — for replay
+let lastAsk = null;      // what the replay button re-asks
 let pendingAsk = null;
+let lastPlainAsk = null; // the most recent NON-correction request
 
 function scroll(el) {
   requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }));
@@ -262,7 +263,8 @@ async function send(text, isReplay) {
       mine.appendChild(t);
     }
   } else {
-    lastAsk = pendingAsk;
+    lastPlainAsk = sentText;   // an ordinary request — this is what replay should re-ask
+    lastAsk = sentText;
   }
 }
 
