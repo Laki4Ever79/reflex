@@ -15,6 +15,7 @@ build/
 
 # adapters + training artifacts
 adapters/
+lanes/weights/queue.jsonl
 *.safetensors
 *.gguf
 checkpoints/
