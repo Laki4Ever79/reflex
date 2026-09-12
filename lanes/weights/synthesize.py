@@ -9,8 +9,11 @@ import os
 import re
 
 import requests
+from dotenv import load_dotenv
 
 from contracts import PreferencePair, WeightsArtifact
+
+load_dotenv()
 
 XAI_API_URL = "https://api.x.ai/v1/chat/completions"
 XAI_MODEL = "grok-4.6"
@@ -44,8 +47,7 @@ def _extract_json(text: str) -> dict:
     return json.loads(match.group(0))
 
 
-def _call_grok(artifact: WeightsArtifact) -> dict:
-    api_key = os.environ["XAI_API_KEY"]
+def _call_grok(artifact: WeightsArtifact, api_key: str) -> dict:
     resp = requests.post(
         XAI_API_URL,
         headers={"Authorization": f"Bearer {api_key}"},
@@ -73,10 +75,14 @@ def synthesize(artifact: WeightsArtifact) -> list[PreferencePair]:
     Malformed model output: retry once, then raise. No fallback — a silently
     truncated pair list would quietly starve every training run downstream.
     """
+    api_key = os.environ.get("XAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("XAI_API_KEY not set — put it in reflex/.env")
+
     last_error: Exception | None = None
     for _attempt in range(2):
         try:
-            data = _call_grok(artifact)
+            data = _call_grok(artifact, api_key)
             pairs = [
                 PreferencePair(prompt=p["prompt"], chosen=p["chosen"], rejected=p["rejected"])
                 for p in data["pairs"]
