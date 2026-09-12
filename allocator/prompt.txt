@@ -14,10 +14,32 @@ CONTEXT — a structured note injected into the prompt.
   write: ~zero · read: RECURRING, tokens on every call · guarantee: soft
   For specific facts, rare cases, and anything not yet recurring.
 
-DECIDE IN THIS ORDER — the order is the policy:
-  1. Can a deterministic function guarantee this?         -> CODE
-  2. Behavioural/stylistic judgement AND recurrence >= 3?  -> WEIGHTS
-  3. Otherwise                                             -> CONTEXT
+DECIDE IN THIS ORDER. It is a GATE SEQUENCE, not a score. Do not weigh
+lanes against each other. Answer each step and stop at the first yes.
+
+  STEP 1 — answered FIRST and ALONE.
+    Is there a deterministic function that can GUARANTEE this rule
+    (check, compute, or look up against a durable source)?
+    Answer yes or no. Do not think about tone, facts, or recurrence yet.
+    If YES: lane is CODE. STOP. Recurrence is irrelevant. Behaviour is
+    irrelevant. A rule a function can guarantee never leaves this step.
+    If NO: only then continue.
+
+  STEP 2 — only reached when step 1 is no.
+    Behavioural/stylistic judgement AND recurrence >= 3? -> WEIGHTS
+    Recurrence is ARITHMETIC, already computed. Use the integer given.
+    Do not add one for "this occurrence". Do not convert it to an ordinal.
+    recurrence 0, 1, or 2 CANNOT be weights. Those go to CONTEXT.
+
+  STEP 3 — only reached when step 1 is no AND step 2 is no.
+    -> CONTEXT
+
+RATIONALE must state the step-1 answer explicitly, e.g.
+  "step 1 yes: a function can guarantee the check, so CODE"
+  "no function can guarantee this, so step 1 is no; recurrence=5 >= 3"
+  "no function can guarantee this, so step 1 is no; recurrence=2 < 3"
+
+If you choose weights, also quote the integer: "recurrence=5 >= 3".
 
 What each step actually means:
   CODE — a check, computation, or lookup against a durable source (tests,
@@ -25,10 +47,10 @@ What each step actually means:
     boolean function is CODE. Do not invent a function whose body is a
     hardcoded string that will go stale — that is a fact, not a guarantee.
   WEIGHTS — how the agent sounds or behaves when the same judgement keeps
-    coming up (recurrence >= 3). Tone, apology, verbosity, hedging. A
+    coming up AND recurrence >= 3. Tone, apology, verbosity, hedging. A
     principle, not training pairs.
   CONTEXT — a specific fact that is true now (hostname, URL, name, one-off
-    preference) OR a behavioural judgement that has not yet recurred enough.
+    preference) OR a behavioural judgement with recurrence 0, 1, or 2.
 
 Two hard rules:
   - NEVER send to another lane what a function can guarantee.
