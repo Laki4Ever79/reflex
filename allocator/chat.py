@@ -48,21 +48,39 @@ def _client() -> OpenAI:
     return OpenAI(api_key=key, base_url=BASE_URL)
 
 
-def _learned_context(state: dict) -> str:
-    """Context-lane bullets, injected into the agent's system prompt.
+def _learned_context(state: dict, turn: str = "") -> str:
+    """Context-lane bullets that apply to THIS turn.
 
-    This is what makes the context lane visible in the product: a correction
-    routed to context changes how the agent answers on the very next turn.
+    Each bullet carries a trigger: "always", or "retrieved_on:<cue>". Injecting
+    all of them on every call is the naive version of the lane we call the
+    expensive one - and it measurably is: a full dump cost 6.6s to first token
+    against 1.5s bare. So honour the trigger. "always" bullets ride every turn;
+    a cued bullet only rides a turn its cue appears in.
+
+    This is also what the context tax MEANS. A note you actually re-read every
+    time is the expensive case; a retrieved one is paid for only when relevant.
     """
-    bullets = [
-        c["artifact"].get("bullet", "")
-        for c in state.get("corrections", [])
-        if c.get("lane") == "context" and isinstance(c.get("artifact"), dict)
-    ]
-    bullets = [b for b in bullets if b]
-    if not bullets:
+    haystack = turn.lower()
+    picked = []
+    for c in state.get("corrections", []):
+        if c.get("lane") != "context":
+            continue
+        art = c.get("artifact") or {}
+        bullet = art.get("bullet", "")
+        if not bullet:
+            continue
+        trigger = (art.get("trigger") or "always").strip()
+        if trigger == "always":
+            picked.append(bullet)
+        elif trigger.startswith("retrieved_on:"):
+            cue = trigger.split(":", 1)[1].strip().lower().replace("_", " ")
+            words = [w for w in cue.split() if len(w) > 3]
+            if words and any(w in haystack for w in words):
+                picked.append(bullet)
+
+    if not picked:
         return ""
-    lines = "\n".join(f"- {b}" for b in bullets)
+    lines = "\n".join(f"- {b}" for b in picked)
     return f"\n\nThings this user has told you before:\n{lines}"
 
 
@@ -99,7 +117,8 @@ def reply_stream(messages: list[dict], state: dict):
     makes the wait legible - the first words land in about a second and the
     demo stops looking stalled.
     """
-    system = AGENT_SYSTEM + _learned_context(state)
+    last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+    system = AGENT_SYSTEM + _learned_context(state, last_user)
     stream = _client().chat.completions.create(
         model=MODEL,
         messages=[{"role": "system", "content": system}] + messages[-12:],
@@ -115,7 +134,8 @@ def reply_stream(messages: list[dict], state: dict):
 
 def reply(messages: list[dict], state: dict) -> str:
     """The agent's answer, with context-lane learnings applied."""
-    system = AGENT_SYSTEM + _learned_context(state)
+    last_user = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+    system = AGENT_SYSTEM + _learned_context(state, last_user)
     r = _client().chat.completions.create(
         model=MODEL,
         messages=[{"role": "system", "content": system}] + messages[-12:],
