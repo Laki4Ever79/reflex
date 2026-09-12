@@ -1,0 +1,75 @@
+{
+  "corrections": [
+    {
+      "id": 1,
+      "ts": "2026-09-12T14:00:16",
+      "agent_said": "I sincerely apologize for the confusion, I'm very sorry.",
+      "user_wanted": "Stop over-apologizing. One short acknowledgement.",
+      "situation": "Agent made a small mistake and wrote three sentences of apology.",
+      "cluster": "over-apologizing",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "Over-apologizing is a behavioural/stylistic judgement that cannot be guaranteed by a function and has recurrence 0, so it is not yet eligible for weights.",
+      "confidence": 0.92,
+      "artifact": {
+        "bullet": "When acknowledging a mistake, use one short acknowledgement; do not over-apologize.",
+        "trigger": "always"
+      }
+    },
+    {
+      "id": 2,
+      "ts": "2026-09-12T14:00:40",
+      "agent_said": "I'm so sorry, I really apologize, that was completely my fault.",
+      "user_wanted": "Don't grovel. One brief acknowledgement then continue.",
+      "situation": "Follow-up reply stacked more apologies after a tiny error.",
+      "cluster": "over-apologizing",
+      "recurrence": 1,
+      "lane": "context",
+      "rationale": "Stylistic apology judgement that is not a deterministic check and has only one prior occurrence, so it is not yet eligible for weights.",
+      "confidence": 0.9,
+      "artifact": {
+        "bullet": "Do not grovel or stack apologies; after a small error, give one brief acknowledgement then continue.",
+        "trigger": "retrieved_on:apology"
+      }
+    },
+    {
+      "id": 3,
+      "ts": "2026-09-12T14:01:08",
+      "agent_said": "Please accept my deepest apologies for this unfortunate misunderstanding.",
+      "user_wanted": "No performative remorse. Acknowledge once, move on.",
+      "situation": "Third time the agent padded a correction with apology prose.",
+      "cluster": "over-apologizing",
+      "recurrence": 2,
+      "lane": "weights",
+      "rationale": "Stylistic judgement on apology tone that now recurs for the third time (recurrence >= 2), which a function cannot guarantee.",
+      "confidence": 0.95,
+      "artifact": {
+        "principle": "Acknowledge a mistake once in a single short clause, then move on; never pad with performative remorse.",
+        "scope": "Self-corrections and acknowledgements of misunderstanding."
+      }
+    },
+    {
+      "id": 4,
+      "ts": "2026-09-12T14:01:31",
+      "agent_said": "I'll deploy to staging.internal.",
+      "user_wanted": "Staging moved to stg-2.internal last week.",
+      "situation": "Agent used a stale hostname.",
+      "cluster": "stale-hostname",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "A current hostname is a specific fact, not a durable lookup or recurring behavioural judgement, so it belongs in context.",
+      "confidence": 0.95,
+      "artifact": {
+        "bullet": "Staging hostname is stg-2.internal (moved from staging.internal).",
+        "trigger": "retrieved_on:staging"
+      }
+    }
+  ],
+  "clusters": {
+    "over-apologizing": 3,
+    "stale-hostname": 1
+  },
+  "context_tokens": 0,
+  "queue_depth": 0,
+  "adapter_version": null
+}
