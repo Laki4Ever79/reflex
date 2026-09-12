@@ -8,100 +8,102 @@ tasks. It is the authority on what to do next.
 HOW TO USE IT
   - Read this file before starting any task.
   - Re-read it after you finish a task, before asking what's next.
-  - CURRENT TASK is what to do now. Do only that.
-  - REVIEW NOTES are defects found in code you already wrote. Fix them before
-    starting a new CURRENT TASK.
-  - If this file contradicts an earlier instruction in the chat, this file wins.
-  - Never edit this file.
-
-================================================================================
-STANDING RULES
-================================================================================
-
-1. NO FALLBACK TO THE CONTEXT LANE. If the allocator cannot parse a response,
-   retry once, then raise AllocationError. Do not return a default Allocation,
-   do not "safely" route to context, do not swallow the error. A fallback sends
-   every ambiguous case to context, which silently makes the product's central
-   claim false while everything still appears to work. This is the single most
-   important rule in the repo.
-
-2. contracts.py is PINNED. Do not change a shape in it. If you believe it is
-   wrong, say so and stop — do not edit it.
-
-3. Stay in your lane. Touch only:
-       allocator/            lanes/weights/gate.py
-   Do not create or edit files under lanes/code/, lanes/context/, or ui/.
-   Other people are working in those directories right now.
-
-4. Run `python harness.py` after every change. Your rows are "allocator" and
-   "promotion gate". They must not be BROKEN when you stop.
-
-5. No test suite, no abstraction layers, no config framework, no retry
-   libraries. This is a six-hour build. One working call path beats three
-   configurable ones.
-
-6. Secrets come from the environment (XAI_API_KEY). Never hardcode a key,
-   never print one, never commit one. This repo is PUBLIC — a committed key is
-   live on the internet the moment it is pushed.
-
-7. Everything here ships as open source under MIT and gets read by judges. No
-   vendored code with an incompatible licence, no copied source without
-   attribution, no generated boilerplate nobody understands. If a judge opens
-   a file, it should be defensible.
+  -
 
 ================================================================================
 CURRENT TASK
 ================================================================================
 
-Build the allocator's one working call path.
+Two fixes, then batch mode. Reviewed against a live run: all three test
+corrections routed correctly (code / weights / context, confidence 0.92-0.95,
+rationales good). The call path works. These are defects in it.
 
-  allocator/allocate.py
-      def allocate(c: Correction) -> Allocation
+FIX 1 — BLOCKING SOMEONE ELSE. `implementation` is prose, not code.
 
-      - grok-4.6 at https://api.x.ai/v1/chat/completions (OpenAI-compatible,
-        key in XAI_API_KEY). Use the openai python client with base_url set.
-      - System prompt: read allocator/prompt.txt at call time, not baked in.
-        The prompt gets iterated constantly — it must be editable without
-        touching code.
-      - User message: the four Correction fields, labelled.
-      - Ask for JSON output. Parse strictly into Allocation + the matching
-        artifact dataclass from contracts.py.
-      - Malformed or unparseable: retry ONCE, then raise AllocationError.
-        See standing rule 1.
+  The live CODE artifact came back as:
 
-  allocator/cli.py
-      python -m allocator.cli --said "..." --wanted "..." --situation "..." \
-                              --recurrence 2
+    implementation: "Invoke the project's test suite and return True only if
+                     it exits 0; block any completion/done claim until that
+                     succeeds."
 
-      Prints lane, confidence, rationale, and the artifact fields, readably.
-      This is the loop used to iterate prompt.txt, so make the output easy to
-      eyeball — the rationale matters as much as the lane.
+  contracts.py says: `implementation: str  # python source, executed in a
+  Daytona sandbox`. lanes/code/materialize.py will take that string and try to
+  run it. It is a description, so it will fail — at integration, not now.
+
+  Fix in allocator/prompt.txt, not in code. The artifact spec must state that
+  `implementation` is executable Python source: a complete function definition
+  matching `signature`, importable and callable with no side effects at import,
+  returning the value the signature promises. Give it a one-line example in the
+  prompt so the shape is unambiguous.
+
+  Re-run the tests case afterwards and confirm `implementation` is code you
+  could paste into a file and run.
+
+FIX 2 — the retry is a no-op.
+
+  allocate() calls with temperature=0 and retries the IDENTICAL request. A
+  deterministic parse failure fails identically the second time, so the retry
+  buys nothing.
+
+  On the retry, append the parse error to the user message — e.g. "Your previous
+  response could not be parsed: <error>. Return only the JSON object." Then the
+  model has something to correct. Keep temperature at 0.
+
+  While in there: the `except AllocationError: raise` branch inside the loop is
+  dead. _client() is called outside the loop, so nothing inside can raise it.
+  Remove it.
+
+THEN — batch mode, for the twenty labels.
+
+  allocator/batch.py
+
+    python -m allocator.batch labels.csv
+
+  Input CSV columns: agent_said, user_wanted, situation, recurrence, expected
+  ("expected" is the human label: code | weights | context).
+
+  For each row, call allocate(). Print a row per correction: expected, actual,
+  agree/disagree, confidence, rationale. Then print the agreement rate as a
+  percentage and a confusion breakdown (which lane got confused for which).
+
+  Run rows concurrently — twenty sequential grok calls is minutes of waiting
+  and the prompt gets iterated many times today. A thread pool is fine.
+
+  A row that raises AllocationError is printed as an error row and counted as a
+  disagreement. Do not let one bad row kill the batch.
+
+  This produces the agreement-rate number that goes in the video, and it is the
+  loop for iterating prompt.txt against real data. It matters more than the gate.
 
 DONE WHEN
-  `python harness.py --live` shows OK on the allocator row, and the CLI routes
-  all three of these correctly:
-
-    tests    --said "Done, the change is ready."
-             --wanted "Always run the tests before telling me it's done."
-             --recurrence 4                                   -> expect CODE
-
-    apology  --said "I sincerely apologize for the confusion, I'm very sorry."
-             --wanted "Stop over-apologizing. One short acknowledgement."
-             --recurrence 5                                   -> expect WEIGHTS
-
-    staging  --said "I'll deploy to staging.internal."
-             --wanted "Staging moved to stg-2.internal last week."
-             --recurrence 0                                   -> expect CONTEXT
-
-  If one routes wrong, fix allocator/prompt.txt — NOT the parsing code, and
-  never by special-casing an input. The prompt is the policy.
+  - The tests case returns `implementation` that is runnable Python.
+  - A forced parse failure shows the retry sending the error back.
+  - `python -m allocator.batch` on a CSV prints per-row results and an
+    agreement rate.
 
 DO NOT YET
-  Dashboard. Batch mode. Persistence. The gate. Clustering/recurrence counting.
-  Those come in later tasks.
+  Dashboard. Persistence. The gate. Clustering. Recurrence counting.
 
 ================================================================================
 REVIEW NOTES
 ================================================================================
 
-(none yet — first pass)
+Reviewed allocator/allocate.py and allocator/cli.py after a live run.
+
+GOOD — keep these, do not regress them:
+  - No fallback lane. AllocationError is raised. This is the rule that matters
+    most and it was honoured.
+  - prompt.txt is read inside allocate(), not cached at import. Correct: the
+    prompt is iterated constantly.
+  - Strict per-lane artifact construction; confidence range-checked; bool
+    rejected as a confidence value. Good attention.
+  - temperature=0. Keep it.
+  - No key in source. Keep it that way — this repo is public.
+
+MINOR — not worth fixing unless you are idle:
+  - _extract_object() strips markdown fences and scrapes the outermost
+    {...} out of prose. With response_format=json_object that path is
+    unreachable, and it makes parsing lenient where the rules asked for strict.
+    Leniency here would hide a prompt regression rather than surface it.
+  - allocate() builds a new OpenAI client per call. Irrelevant for one call,
+    wasteful for a batch of twenty. Hoist it if batch.py feels slow.
