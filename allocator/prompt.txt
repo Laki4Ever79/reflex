@@ -49,6 +49,11 @@ OUTPUT — JSON only, no prose.
   "confidence": 0.0-1.0,
   "artifact": {
      // code:    {"name","signature","implementation","call_when"}
+     //   implementation is executable Python source, not a description.
+     //   A complete function definition matching signature, importable
+     //   with no side effects at import, returning what the signature
+     //   promises. Example:
+     //   "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n"
      // weights: {"principle","scope"}      <- a principle, NOT training pairs
      // context: {"bullet","trigger"}       trigger: "always" | "retrieved_on:<cue>"
   }

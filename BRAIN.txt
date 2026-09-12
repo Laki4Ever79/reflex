@@ -11,99 +11,115 @@ HOW TO USE IT
   -
 
 ================================================================================
+
+================================================================================
 CURRENT TASK
 ================================================================================
 
-Two fixes, then batch mode. Reviewed against a live run: all three test
-corrections routed correctly (code / weights / context, confidence 0.92-0.95,
-rationales good). The call path works. These are defects in it.
+Reviewed live: both fixes landed and work. `implementation` is now real Python
+and it GENERALISES — an unseen correction produced a novel GitHub API merge
+check, not a copy of the prompt example. Batch runs, scores, and prints a
+confusion matrix. The allocator lane is at checkpoint A.
 
-FIX 1 — BLOCKING SOMEONE ELSE. `implementation` is prose, not code.
+Next: make recurrence real, and give the dashboard something to read. Both are
+integration work, which is your job. The gate comes after — it cannot be tested
+until an adapter exists, and that is blocked on someone else.
 
-  The live CODE artifact came back as:
+TASK 1 — the store. This is the integration seam.
 
-    implementation: "Invoke the project's test suite and return True only if
-                     it exits 0; block any completion/done claim until that
-                     succeeds."
+  allocator/store.py
 
-  contracts.py says: `implementation: str  # python source, executed in a
-  Daytona sandbox`. lanes/code/materialize.py will take that string and try to
-  run it. It is a description, so it will fail — at integration, not now.
+    append(correction: Correction, allocation: Allocation) -> None
+    load() -> dict
 
-  Fix in allocator/prompt.txt, not in code. The artifact spec must state that
-  `implementation` is executable Python source: a complete function definition
-  matching `signature`, importable and callable with no side effects at import,
-  returning the value the signature promises. Give it a one-line example in the
-  prompt so the shape is unambiguous.
+  Persist to `state.json` at the repo root. One JSON file, pretty-printed,
+  rewritten on each append. No database, no ORM, no schema migrations.
 
-  Re-run the tests case afterwards and confirm `implementation` is code you
-  could paste into a file and run.
+  Shape — this is a contract with the dashboard, so do not deviate:
 
-FIX 2 — the retry is a no-op.
+    {
+      "corrections": [
+        {
+          "id": 1,
+          "ts": "2026-09-12T14:02:11",
+          "agent_said": "...",
+          "user_wanted": "...",
+          "situation": "...",
+          "cluster": "over-apologising",
+          "recurrence": 3,
+          "lane": "weights",
+          "rationale": "...",
+          "confidence": 0.95,
+          "artifact": { ...lane-specific fields... }
+        }
+      ],
+      "clusters": { "over-apologising": 3, "stale-hostname": 1 },
+      "context_tokens": 0,
+      "queue_depth": 0,
+      "adapter_version": null
+    }
 
-  allocate() calls with temperature=0 and retries the IDENTICAL request. A
-  deterministic parse failure fails identically the second time, so the retry
-  buys nothing.
+  The dashboard reads this file directly. It does NOT import your modules —
+  that keeps you and Lazar V decoupled. Tell him the path and the shape; do
+  not ask him to import anything.
 
-  On the retry, append the parse error to the user message — e.g. "Your previous
-  response could not be parsed: <error>. Return only the JSON object." Then the
-  model has something to correct. Keep temperature at 0.
+TASK 2 — clustering, so recurrence is computed rather than typed.
 
-  While in there: the `except AllocationError: raise` branch inside the loop is
-  dead. _client() is called outside the loop, so nothing inside can raise it.
-  Remove it.
+  allocator/cluster.py
 
-THEN — batch mode, for the twenty labels.
+    assign_cluster(c: Correction, known: list[str]) -> str
 
-  allocator/batch.py
+  Given a new correction and the cluster labels already in state.json, return
+  either an existing label (same class of correction) or a new short
+  kebab-case label. One grok call. Keep the prompt inline in this file — it is
+  a utility, not the policy, and it should not live in prompt.txt.
 
-    python -m allocator.batch labels.csv
+  Then wire it: allocate_and_store(c) looks up the cluster, counts prior
+  members, sets c.recurrence from that count, THEN calls allocate().
 
-  Input CSV columns: agent_said, user_wanted, situation, recurrence, expected
-  ("expected" is the human label: code | weights | context).
-
-  For each row, call allocate(). Print a row per correction: expected, actual,
-  agree/disagree, confidence, rationale. Then print the agreement rate as a
-  percentage and a confusion breakdown (which lane got confused for which).
-
-  Run rows concurrently — twenty sequential grok calls is minutes of waiting
-  and the prompt gets iterated many times today. A thread pool is fine.
-
-  A row that raises AllocationError is printed as an error row and counted as a
-  disagreement. Do not let one bad row kill the batch.
-
-  This produces the agreement-rate number that goes in the video, and it is the
-  loop for iterating prompt.txt against real data. It matters more than the gate.
+  This matters more than it looks. Right now `recurrence` is a number a human
+  types, which means the weights lane's gate is hand-fed. The demo requires a
+  recurrence counter reaching its threshold on camera — "third time you've
+  corrected this" is the most convincing frame we have, and it is only real if
+  a cluster count produced it.
 
 DONE WHEN
-  - The tests case returns `implementation` that is runnable Python.
-  - A forced parse failure shows the retry sending the error back.
-  - `python -m allocator.batch` on a CSV prints per-row results and an
-    agreement rate.
+  Three similar corrections fed in sequence through allocate_and_store() produce
+  recurrence 0, 1, 2 on the same cluster, the third crosses the threshold and
+  routes to WEIGHTS, and state.json reflects all of it.
+
+  Feeding a DIFFERENT correction must not increment that cluster.
 
 DO NOT YET
-  Dashboard. Persistence. The gate. Clustering. Recurrence counting.
+  The gate. Dashboard. Anything under lanes/.
+
+AFTER THAT (do not start yet, listed so you know where this goes)
+  lanes/weights/gate.py — evaluate(incumbent, challenger) -> GateVerdict.
 
 ================================================================================
 REVIEW NOTES
 ================================================================================
 
-Reviewed allocator/allocate.py and allocator/cli.py after a live run.
+Reviewed allocate.py, batch.py, prompt.txt against live calls.
 
-GOOD — keep these, do not regress them:
-  - No fallback lane. AllocationError is raised. This is the rule that matters
-    most and it was honoured.
-  - prompt.txt is read inside allocate(), not cached at import. Correct: the
-    prompt is iterated constantly.
-  - Strict per-lane artifact construction; confidence range-checked; bool
-    rejected as a confidence value. Good attention.
-  - temperature=0. Keep it.
-  - No key in source. Keep it that way — this repo is public.
+VERIFIED WORKING — do not regress:
+  - No fallback lane. AllocationError still raised. The rule holds.
+  - Retry now feeds the parse error back into the user message. Correct fix.
+  - `implementation` returns executable Python AND generalises to unseen
+    corrections. Confirmed with a correction unrelated to the prompt example.
+  - batch.py: concurrent, per-row verdicts, agreement rate, confusion matrix,
+    error rows counted as disagreements rather than killing the run. Good.
 
-MINOR — not worth fixing unless you are idle:
-  - _extract_object() strips markdown fences and scrapes the outermost
-    {...} out of prose. With response_format=json_object that path is
-    unreachable, and it makes parsing lenient where the rules asked for strict.
-    Leniency here would hide a prompt regression rather than surface it.
-  - allocate() builds a new OpenAI client per call. Irrelevant for one call,
-    wasteful for a batch of twenty. Hoist it if batch.py feels slow.
+ONE OBSERVATION, not yours to fix:
+  Generated code swallows exceptions and returns False on failure — the merge
+  check returns "not merged" when the network is down. That is a property of
+  model-generated code, not of your code. Mention it to whoever builds
+  lanes/code/materialize.py: a generated function that swallows errors will
+  silently answer wrongly rather than fail loudly.
+
+THE REAL GAP IS NOT CODE:
+  labels.csv has 3 rows and they are the same three probes the prompt was
+  tuned against. 3/3 is not a metric, it is a tautology. The agreement rate
+  only means something on ~20 rows of corrections that were NOT used to write
+  the prompt. That is human work and it is the bottleneck on the video's
+  headline number.

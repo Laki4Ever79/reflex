@@ -23,16 +23,21 @@ PROMPT_PATH = Path(__file__).resolve().parent / "prompt.txt"
 XAI_BASE_URL = "https://api.x.ai/v1"
 MODEL = "grok-4.6"
 
+_CLIENT: OpenAI | None = None
+
 
 class AllocationError(Exception):
     """Raised when the model output cannot be parsed after one retry."""
 
 
 def _client() -> OpenAI:
-    key = os.environ.get("XAI_API_KEY")
-    if not key:
-        raise AllocationError("XAI_API_KEY is not set")
-    return OpenAI(api_key=key, base_url=XAI_BASE_URL)
+    global _CLIENT
+    if _CLIENT is None:
+        key = os.environ.get("XAI_API_KEY")
+        if not key:
+            raise AllocationError("XAI_API_KEY is not set")
+        _CLIENT = OpenAI(api_key=key, base_url=XAI_BASE_URL)
+    return _CLIENT
 
 
 def _user_message(c: Correction) -> str:
@@ -133,11 +138,15 @@ def allocate(c: Correction) -> Allocation:
     user = _user_message(c)
     client = _client()
     last_err: Exception | None = None
-    for _ in range(2):
+    for attempt in range(2):
         try:
             return _parse_allocation(_complete(client, system, user))
-        except AllocationError:
-            raise
         except Exception as e:
             last_err = e
+            if attempt == 0:
+                user = (
+                    _user_message(c)
+                    + f"\nYour previous response could not be parsed: {e}. "
+                    "Return only the JSON object."
+                )
     raise AllocationError(f"unparseable after retry: {last_err}") from last_err
