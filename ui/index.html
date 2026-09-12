@@ -1,28 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>reflex</title>
-  <style>
-    body {
-      background: #0b0d10;
-      color: #e6e6e6;
-      font-family: -apple-system, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .box { text-align: center; }
-    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
-    p { color: #888; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>reflex — live board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="box">
-    <h1>reflex</h1>
-    <p>dashboard coming online — three lanes, one loop</p>
-  </div>
+
+  <header class="topbar">
+    <div class="brand">reflex</div>
+    <div class="topbar-metrics">
+      <div class="metric">
+        <span class="metric-label">adapter</span>
+        <span class="metric-value" id="adapter-version">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">training queue</span>
+        <span class="metric-value" id="queue-depth">0</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="inbox" id="inbox" aria-live="polite"></div>
+
+  <main class="board">
+
+    <section class="lane" data-lane="code">
+      <div class="lane-head">
+        <h2>code</h2>
+        <p class="lane-sub">deterministic — promises, doesn't bias</p>
+        <div class="lane-stat"><span id="code-stat">0</span> tools live</div>
+      </div>
+      <div class="lane-items" id="code-items"></div>
+    </section>
+
+    <section class="lane" data-lane="weights">
+      <div class="lane-head">
+        <h2>weights</h2>
+        <p class="lane-sub">learned behaviours only</p>
+        <div class="lane-stat"><span id="weights-stat">0</span>/<span id="weights-threshold">50</span> queued</div>
+      </div>
+      <div class="lane-items" id="weights-items"></div>
+    </section>
+
+    <section class="lane" data-lane="context">
+      <div class="lane-head">
+        <h2>context</h2>
+        <p class="lane-sub">last resort — taxed on every read</p>
+        <div class="lane-stat"><span id="context-stat">0</span> tokens</div>
+      </div>
+      <div class="lane-items" id="context-items"></div>
+    </section>
+
+  </main>
+
+  <footer class="statusbar">
+    <span id="conn-status" class="status-dot status-mock"></span>
+    <span id="conn-label">mock data — not connected to a live pipeline</span>
+  </footer>
+
+  <script src="app.js"></script>
 </body>
 </html>
