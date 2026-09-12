@@ -104,6 +104,13 @@ button:disabled{opacity:.45;cursor:default}
 .tot .n{font-family:var(--fm);font-size:15px;font-weight:600}
 .tot .l{font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;color:var(--muted)}
 .tot .code .n{color:var(--code)}.tot .weights .n{color:var(--weights)}.tot .context .n{color:var(--context)}
+.tax{display:flex;flex-direction:column;gap:5px}
+.tl{display:flex;justify-content:space-between;font-size:11px;color:#c3cdda}
+.tl.dim{color:var(--muted)}
+.tl .mono{font-size:11.5px;font-weight:600}
+#tok-now{color:var(--context)}#tok-all{color:var(--code)}
+.tbar{height:6px;background:#0f1626;border:1px solid var(--border);overflow:hidden}
+.tbar div{height:100%;background:var(--context);width:0;transition:width .5s}
 #replay{display:none;padding:9px;font-size:12.5px;width:100%}
 #replay.show{display:block}
 
@@ -149,6 +156,17 @@ button:disabled{opacity:.45;cursor:default}
         <div class="code"><span class="n" id="t-code">0</span><span class="l">CODE</span></div>
         <div class="weights"><span class="n" id="t-weights">0</span><span class="l">WEIGHTS</span></div>
         <div class="context"><span class="n" id="t-context">0</span><span class="l">CONTEXT</span></div>
+      </div>
+      <div class="tax">
+        <div class="tl">
+          <span>carried on every call</span>
+          <span class="mono" id="tok-now">&mdash;</span>
+        </div>
+        <div class="tbar"><div id="tok-fill"></div></div>
+        <div class="tl dim">
+          <span>if every correction were a note</span>
+          <span class="mono" id="tok-all">&mdash;</span>
+        </div>
       </div>
       <button id="replay">Ask the same thing again &mdash; did it listen?</button>
     </div>

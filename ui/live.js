@@ -58,6 +58,15 @@ function dotsHtml(count, threshold) {
   return h + "</div>";
 }
 
+function setTax(state) {
+  if (!state) return;
+  const now = state.context_tokens || 0;
+  const all = state.if_all_context || 0;
+  $("tok-now").textContent = now + " tok";
+  $("tok-all").textContent = all + " tok";
+  $("tok-fill").style.width = all ? Math.round((now / all) * 100) + "%" : "0%";
+}
+
 function setTotals(t) {
   if (!t) return;
   $("t-code").textContent = t.code ?? 0;
@@ -97,6 +106,7 @@ function renderObserve(d) {
   if (d.lane === "code") runSandbox();
 
   setTotals(d.totals);
+  setTax(d.state);
   $("pulse").className = "pulse";
   if (lastAsk) $("replay").classList.add("show");
 }
@@ -239,5 +249,6 @@ fetch("/state.json", { cache: "no-store" })
     const t = { code: 0, weights: 0, context: 0 };
     (s.corrections || []).forEach((c) => { if (t[c.lane] !== undefined) t[c.lane]++; });
     setTotals(t);
+    setTax(s);
   })
   .catch(() => {});

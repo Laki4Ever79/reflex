@@ -68,7 +68,40 @@ def append(correction: Correction, allocation: Allocation) -> None:
     state["clusters"] = dict(
         Counter(row["cluster"] for row in state["corrections"])
     )
+    _recount_tokens(state)
     _write(state)
+
+
+def _recount_tokens(state: dict) -> None:
+    """The number the closing chart plots, and the counterfactual beside it.
+
+    context_tokens is what the agent actually carries on every call: only the
+    bullets that landed in the context lane. if_all_context is what a one-lane
+    agent would carry - every correction written down as a note - which is the
+    line that climbs while ours stays flat.
+
+    Derived from state rather than read from the context lane's in-memory list,
+    so it survives a restart and reflects the seeded history.
+    """
+    try:
+        from lanes.context.store import _count_tokens
+    except Exception:  # noqa: BLE001
+        def _count_tokens(t: str) -> int:
+            return max(1, len(t) // 4)
+
+    rows = state.get("corrections", [])
+    carried = 0
+    counterfactual = 0
+    for r in rows:
+        art = r.get("artifact") or {}
+        bullet = art.get("bullet") or ""
+        if r.get("lane") == "context" and bullet:
+            carried += _count_tokens(bullet)
+        # what this learning would have cost if it had been written down
+        counterfactual += _count_tokens(bullet or r.get("user_wanted", ""))
+
+    state["context_tokens"] = carried
+    state["if_all_context"] = counterfactual
 
 
 def allocate_and_store(c: Correction) -> Allocation:

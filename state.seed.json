@@ -140,7 +140,8 @@
     "over-apologizing": 2,
     "stale-hostname": 1
   },
-  "context_tokens": 0,
+  "context_tokens": 161,
   "queue_depth": 0,
-  "adapter_version": null
+  "adapter_version": null,
+  "if_all_context": 183
 }

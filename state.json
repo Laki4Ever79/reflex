@@ -131,16 +131,70 @@
         "bullet": "When work would leave the caller in silence, say 'Samo trenutak' so they know to wait \u2014 do not use acknowledgements like 'Va\u017ei, kre\u0107em odmah' that sound like 'done'.",
         "trigger": "retrieved_on:signalling_pause"
       }
+    },
+    {
+      "id": 9,
+      "ts": "2026-09-12T16:15:29",
+      "agent_said": "Claimed the upload retry change was done and ready without running tests.",
+      "user_wanted": "Always run the test suite before saying a change is ready.",
+      "situation": "Assistant added a retry to the upload function and declared it ready.",
+      "cluster": "tests-before-done",
+      "recurrence": 1,
+      "lane": "code",
+      "rationale": "step 1 yes: a function can guarantee the check by running the test suite and returning whether it passed, so CODE",
+      "confidence": 0.95,
+      "artifact": {
+        "name": "tests_pass",
+        "signature": "tests_pass() -> bool",
+        "implementation": "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n",
+        "call_when": "Before declaring any code change ready, done, or complete."
+      }
+    },
+    {
+      "id": 10,
+      "ts": "2026-09-12T16:18:46",
+      "agent_said": "Gave basic troubleshooting tips instead of a service number",
+      "user_wanted": "Do not give basic/stupid advice; give the service phone number",
+      "situation": "User said the washing machine does not work",
+      "cluster": "unwanted-basic-advice",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=0 < 3",
+      "confidence": 0.9,
+      "artifact": {
+        "bullet": "When the user reports a washing machine that does not work, give the service phone number instead of basic troubleshooting tips.",
+        "trigger": "retrieved_on:washing machine"
+      }
+    },
+    {
+      "id": 11,
+      "ts": "2026-09-12T16:27:41",
+      "agent_said": "Claimed the change was done and ready without running tests",
+      "user_wanted": "Run the test suite before saying a change is ready",
+      "situation": "Assistant added a retry to the upload function and declared it done",
+      "cluster": "tests-before-done",
+      "recurrence": 2,
+      "lane": "code",
+      "rationale": "step 1 yes: a function can guarantee the check, so CODE",
+      "confidence": 0.95,
+      "artifact": {
+        "name": "tests_pass",
+        "signature": "tests_pass() -> bool",
+        "implementation": "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n",
+        "call_when": "before declaring any code change ready or done"
+      }
     }
   ],
   "clusters": {
     "acknowledgement-as-filler": 3,
-    "tests-before-done": 1,
+    "tests-before-done": 3,
     "push-to-main": 1,
     "over-apologizing": 2,
-    "stale-hostname": 1
+    "stale-hostname": 1,
+    "unwanted-basic-advice": 1
   },
-  "context_tokens": 0,
+  "context_tokens": 193,
   "queue_depth": 0,
-  "adapter_version": null
+  "adapter_version": null,
+  "if_all_context": 241
 }
