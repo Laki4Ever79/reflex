@@ -6,3 +6,4 @@ agent_said,user_wanted,situation,recurrence
 "I sincerely apologize for the confusion, and I'm very sorry.","Stop over-apologizing. One short acknowledgement, then move on.","Agent wrote three sentences of apology over a small mistake.",0
 "My apologies again for the earlier mistake, that was my error entirely.","Again — one line, then continue. You're spending the reply on apology.","Agent opened another reply with an apology.",0
 "I'll deploy to the staging environment at staging.internal.","Staging moved to stg-2.internal last week.","Agent used a stale hostname.",0
+"Važi, krećem odmah.","That's still an acknowledgement. The caller hears 'done' and then silence — say 'Samo trenutak' so they know to wait.","Agent acknowledged again instead of signalling a pause.",0

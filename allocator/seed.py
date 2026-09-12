@@ -69,14 +69,14 @@ def main() -> None:
     print(f"\nstate.json: {len(state['corrections'])} corrections, "
           f"{len(counts)} clusters, threshold={thr}\n")
 
-    primed = sorted(k for k, v in counts.items() if v == thr - 1)
+    primed = sorted(k for k, v in counts.items() if v >= thr)
     if primed:
         print("ONE MORE CROSSES THE THRESHOLD — type one of these on camera:")
         for k in primed:
-            print(f"  {k:<28} at {counts[k]}, next one routes to WEIGHTS")
+            print(f"  {k:<28} {counts[k]} priors -> next arrives at recurrence={counts[k]} >= {thr}")
     else:
-        print("NOTHING IS PRIMED. No cluster sits at threshold-1, so the "
-              "counter cannot cross on camera.")
+        print(f"NOTHING IS PRIMED. recurrence counts PRIOR occurrences, so a "
+              f"cluster needs {thr} members before the next one crosses.")
         print("Add another correction in the same cluster as one of these:")
         for k, v in sorted(counts.items(), key=lambda kv: -kv[1])[:5]:
             print(f"  {k:<28} at {v}")

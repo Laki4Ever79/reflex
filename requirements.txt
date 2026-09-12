@@ -1,2 +1,4 @@
 openai>=2.0
 daytona>=0.211
+fastapi>=0.115
+uvicorn[standard]>=0.32

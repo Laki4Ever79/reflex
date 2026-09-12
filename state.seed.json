@@ -1,0 +1,130 @@
+{
+  "corrections": [
+    {
+      "id": 1,
+      "ts": "2026-09-12T15:22:25",
+      "agent_said": "I'll say 'U redu.' while the lookup runs.",
+      "user_wanted": "Fillers must signal waiting \u2014 'Samo trenutak', not an acknowledgement.",
+      "situation": "Agent used an acknowledgement as a latency filler.",
+      "cluster": "acknowledgement-as-filler",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=0 < 3",
+      "confidence": 0.92,
+      "artifact": {
+        "bullet": "Latency fillers must signal waiting (e.g. 'Samo trenutak'), not an acknowledgement like 'U redu'.",
+        "trigger": "retrieved_on:latency_filler"
+      }
+    },
+    {
+      "id": 2,
+      "ts": "2026-09-12T15:22:59",
+      "agent_said": "The agent answers 'Va\u017ei.' and then goes quiet for four seconds.",
+      "user_wanted": "That's an ack again. A filler has to tell the caller to wait, not that we're finished.",
+      "situation": "Agent acknowledged instead of signalling a pause.",
+      "cluster": "acknowledgement-as-filler",
+      "recurrence": 1,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=1 < 3",
+      "confidence": 0.9,
+      "artifact": {
+        "bullet": "A pause filler must tell the caller to wait; never use an ack like 'Va\u017ei.' that sounds like the turn is finished.",
+        "trigger": "retrieved_on:pause"
+      }
+    },
+    {
+      "id": 3,
+      "ts": "2026-09-12T15:23:20",
+      "agent_said": "Done, the change is ready.",
+      "user_wanted": "Always run the tests before telling me it's done.",
+      "situation": "Agent claimed a task complete without running the suite.",
+      "cluster": "done-without-tests",
+      "recurrence": 0,
+      "lane": "code",
+      "rationale": "step 1 yes: a function can guarantee the check, so CODE",
+      "confidence": 0.95,
+      "artifact": {
+        "name": "tests_pass",
+        "signature": "def tests_pass() -> bool",
+        "implementation": "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n",
+        "call_when": "before claiming a task is done or reporting a change as complete"
+      }
+    },
+    {
+      "id": 4,
+      "ts": "2026-09-12T15:23:58",
+      "agent_said": "I've pushed the fix to main.",
+      "user_wanted": "Never push to main. Branch and open a PR.",
+      "situation": "Agent committed directly to the default branch.",
+      "cluster": "push-to-main",
+      "recurrence": 0,
+      "lane": "code",
+      "rationale": "step 1 yes: a function can guarantee the check against git branch state before push, so CODE",
+      "confidence": 0.92,
+      "artifact": {
+        "name": "is_on_default_branch",
+        "signature": "is_on_default_branch() -> bool",
+        "implementation": "def is_on_default_branch() -> bool:\n    import subprocess\n    def _git(args):\n        r = subprocess.run([\"git\"] + args, capture_output=True, text=True)\n        return r.returncode, r.stdout.strip()\n    code, current = _git([\"rev-parse\", \"--abbrev-ref\", \"HEAD\"])\n    if code != 0 or not current or current == \"HEAD\":\n        return True\n    code, origin_head = _git([\"symbolic-ref\", \"refs/remotes/origin/HEAD\"])\n    if code == 0 and origin_head:\n        default = origin_head.rsplit(\"/\", 1)[-1]\n    else:\n        default = \"main\"\n    return current == default\n",
+        "call_when": "Before git push, committing onto the default branch, or claiming a change was pushed to main; if True, create a branch and open a PR instead."
+      }
+    },
+    {
+      "id": 5,
+      "ts": "2026-09-12T15:24:36",
+      "agent_said": "I sincerely apologize for the confusion, and I'm very sorry.",
+      "user_wanted": "Stop over-apologizing. One short acknowledgement, then move on.",
+      "situation": "Agent wrote three sentences of apology over a small mistake.",
+      "cluster": "over-apologizing",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=0 < 3",
+      "confidence": 0.95,
+      "artifact": {
+        "bullet": "Do not over-apologize for small mistakes: one short acknowledgement, then move on.",
+        "trigger": "retrieved_on:apology"
+      }
+    },
+    {
+      "id": 6,
+      "ts": "2026-09-12T15:25:01",
+      "agent_said": "My apologies again for the earlier mistake, that was my error entirely.",
+      "user_wanted": "Again \u2014 one line, then continue. You're spending the reply on apology.",
+      "situation": "Agent opened another reply with an apology.",
+      "cluster": "over-apologizing",
+      "recurrence": 1,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=1 < 3",
+      "confidence": 0.92,
+      "artifact": {
+        "bullet": "When apologizing, use one short line then immediately continue with the answer; do not spend the reply on apology.",
+        "trigger": "retrieved_on:apology"
+      }
+    },
+    {
+      "id": 7,
+      "ts": "2026-09-12T15:25:22",
+      "agent_said": "I'll deploy to the staging environment at staging.internal.",
+      "user_wanted": "Staging moved to stg-2.internal last week.",
+      "situation": "Agent used a stale hostname.",
+      "cluster": "stale-hostname",
+      "recurrence": 0,
+      "lane": "context",
+      "rationale": "no function can guarantee this, so step 1 is no; recurrence=0 < 3",
+      "confidence": 0.95,
+      "artifact": {
+        "bullet": "Staging hostname is stg-2.internal (not staging.internal).",
+        "trigger": "retrieved_on:staging"
+      }
+    }
+  ],
+  "clusters": {
+    "acknowledgement-as-filler": 2,
+    "done-without-tests": 1,
+    "push-to-main": 1,
+    "over-apologizing": 2,
+    "stale-hostname": 1
+  },
+  "context_tokens": 0,
+  "queue_depth": 0,
+  "adapter_version": null
+}

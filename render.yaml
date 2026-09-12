@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: reflex-app
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: XAI_API_KEY
+        sync: false
