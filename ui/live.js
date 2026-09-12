@@ -226,6 +226,8 @@ $("replay").addEventListener("click", () => {
 
 $("reset").addEventListener("click", async () => {
   if (busy) return;
+  // shared state: one person's reset wipes everyone's corrections
+  if (!confirm("Reset wipes every correction made since the demo started — for everyone on this link. Continue?")) return;
   busy = true;
   try {
     await fetch("/reset", { method: "POST" });
