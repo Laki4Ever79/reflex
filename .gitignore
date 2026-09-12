@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+build/
+.next/
+*.log
+
+# adapters + training artifacts
+adapters/
+*.safetensors
+*.gguf
+checkpoints/
+wandb/
+
+.DS_Store
+.idea/
+.vscode/
