@@ -131,11 +131,29 @@
         "bullet": "When work would leave the caller in silence, say 'Samo trenutak' so they know to wait \u2014 do not use acknowledgements like 'Va\u017ei, kre\u0107em odmah' that sound like 'done'.",
         "trigger": "retrieved_on:signalling_pause"
       }
+    },
+    {
+      "id": 9,
+      "ts": "2026-09-12T17:29:17",
+      "agent_said": "Said a change was done/ready without running tests",
+      "user_wanted": "Run the test suite before telling the user a change is ready",
+      "situation": "User asked to add retry to upload; assistant treated the change as finished without tests",
+      "cluster": "tests-before-done",
+      "recurrence": 1,
+      "lane": "code",
+      "rationale": "step 1 yes: a function can guarantee the check, so CODE",
+      "confidence": 0.95,
+      "artifact": {
+        "name": "tests_pass",
+        "signature": "def tests_pass() -> bool",
+        "implementation": "def tests_pass() -> bool:\n    import subprocess\n    r = subprocess.run(['pytest', '-q'])\n    return r.returncode == 0\n",
+        "call_when": "before telling the user a change is done, ready, or finished"
+      }
     }
   ],
   "clusters": {
     "acknowledgement-as-filler": 3,
-    "tests-before-done": 1,
+    "tests-before-done": 2,
     "push-to-main": 1,
     "over-apologizing": 2,
     "stale-hostname": 1
@@ -143,5 +161,5 @@
   "context_tokens": 161,
   "queue_depth": 0,
   "adapter_version": null,
-  "if_all_context": 183
+  "if_all_context": 198
 }

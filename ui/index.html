@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>reflex — correct it once</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{
@@ -46,7 +47,9 @@ header{padding:14px 22px;border-bottom:1px solid var(--border);
 
 /* ---- conversation ---- */
 #left{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
-#log{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:15px}
+#log{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:15px;
+  justify-content:center}
+#log.started{justify-content:flex-start}
 .msg{display:flex;flex-direction:column;gap:4px;max-width:86%}
 .msg .who{font-family:var(--fm);font-size:9.5px;letter-spacing:.15em;color:var(--muted)}
 .msg .body{font-size:14.5px;line-height:1.55;white-space:pre-wrap}
@@ -71,10 +74,18 @@ header{padding:14px 22px;border-bottom:1px solid var(--border);
 .typing i:nth-child(3){animation-delay:.32s}
 @keyframes blip{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 
-.hint{align-self:center;font-size:12.5px;color:var(--muted);text-align:center;
-  max-width:520px;line-height:1.7;margin:auto 0}
-.try{background:none;border:none;color:var(--context);cursor:pointer;font:inherit;
-  text-decoration:underline;padding:0}
+.hint{display:flex;flex-direction:column;gap:12px;margin:0 auto;max-width:620px;width:100%}
+.hint h3{font-size:13px;font-weight:500;color:var(--muted);margin:0;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.card{text-align:left;padding:13px 14px;background:var(--panel);border:1px solid var(--border);
+  border-radius:6px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px;
+  transition:border-color .2s,transform .2s,background .2s}
+.card:hover{border-color:var(--weights);transform:translateY(-2px);background:var(--raised)}
+.card .k{font-family:var(--fm);font-size:9px;letter-spacing:.13em;color:var(--muted)}
+.card .q{font-size:12.5px;line-height:1.45;color:#c3cdda}
+.card .w{font-size:11.5px;line-height:1.4;color:var(--muted);font-style:italic}
+.hint .foot{font-size:11.5px;color:var(--dim);text-align:center;line-height:1.6}
+@media(max-width:760px){.cards{grid-template-columns:1fr}}
 
 form{padding:12px 22px;border-top:1px solid var(--border);background:#0a0f1b;
   display:flex;gap:8px;align-items:center;flex-shrink:0}
@@ -199,9 +210,25 @@ button:disabled{opacity:.45;cursor:default}
   <div id="left">
     <div id="log">
       <div class="hint">
-        Ask for something, then tell it off when it slips.<br>
-        Try <button class="try" data-t="Add a retry to the upload function.">ask for a change</button>,
-        then <button class="try" data-t="You keep saying it's done without running the tests. Run the suite before telling me a change is ready.">correct it</button>.
+        <h3>Correct the agent. Where should it keep what you said?</h3>
+        <div class="cards">
+          <button class="card" data-t="You keep saying it's done without running the tests. Run the suite before telling me a change is ready.">
+            <span class="k">A RULE</span>
+            <span class="q">&ldquo;Run the tests before telling me it&rsquo;s done.&rdquo;</span>
+            <span class="w">something a computer could check</span>
+          </button>
+          <button class="card" data-t="Staging moved to stg-2.internal last week.">
+            <span class="k">A FACT</span>
+            <span class="q">&ldquo;Staging moved to stg-2.internal.&rdquo;</span>
+            <span class="w">true today, stale next month</span>
+          </button>
+          <button class="card" data-t="Again — one short line and move on. You're spending the whole reply apologising.">
+            <span class="k">A HABIT</span>
+            <span class="q">&ldquo;Stop apologising. One line, then move on.&rdquo;</span>
+            <span class="w">the third time you&rsquo;ve said it</span>
+          </button>
+        </div>
+        <p class="foot">Each one belongs somewhere different &mdash; watch the pipeline decide.</p>
       </div>
     </div>
     <form id="bar">

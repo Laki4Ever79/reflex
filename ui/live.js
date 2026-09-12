@@ -196,6 +196,7 @@ async function send(text, isReplay) {
   $("go").disabled = true;
   $("replay").classList.remove("show");
   document.querySelector(".hint")?.remove();
+  log.classList.add("started");
   document.getElementById("hero")?.classList.add("gone");  // pitch yields to the product
 
   const sentText = text;
@@ -300,7 +301,7 @@ $("reset").addEventListener("click", async () => {
 });
 
 log.addEventListener("click", (e) => {
-  const b = e.target.closest(".try");
+  const b = e.target.closest(".card, .try");
   if (b) { $("msg").value = b.dataset.t; $("msg").focus(); }
 });
 
