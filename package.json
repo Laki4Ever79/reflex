@@ -1,0 +1,6 @@
+{
+  "name": "reflex-convex",
+  "private": true,
+  "description": "Convex functions for Reflex — the durable record of every routing decision",
+  "dependencies": { "convex": "^1.45.0" }
+}

@@ -24,7 +24,28 @@ EMPTY_STATE = {
 }
 
 
+_hydrated = False
+
+
 def load() -> dict:
+    """Local state, rebuilt from Convex once per process.
+
+    Convex is the durable store; state.json is a working copy on an ephemeral
+    disk. On the first read after a boot we pull history back from Convex so a
+    redeploy restores real usage instead of resetting to the seed. If Convex is
+    unconfigured or unreachable we simply keep what is on disk.
+    """
+    global _hydrated
+    if not _hydrated:
+        _hydrated = True
+        try:
+            from allocator.convex_store import hydrate
+            remote = hydrate()
+            if remote and remote["corrections"]:
+                _write(remote)
+                return remote
+        except Exception:  # noqa: BLE001 - never block on the archive
+            pass
     if not STATE_PATH.exists():
         return json.loads(json.dumps(EMPTY_STATE))
     return json.loads(STATE_PATH.read_text())
@@ -70,6 +91,14 @@ def append(correction: Correction, allocation: Allocation) -> None:
     )
     _recount_tokens(state)
     _write(state)
+
+    # durable archive - state.json dies with the next deploy, this does not
+    try:
+        from allocator.convex_store import record as _mirror
+        _mirror(state["corrections"][-1],
+                state.get("context_tokens", 0), state.get("if_all_context", 0))
+    except Exception:  # noqa: BLE001 - the archive must never break the product
+        pass
 
 
 def _recount_tokens(state: dict) -> None:

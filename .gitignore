@@ -26,3 +26,8 @@ wandb/
 
 # editor lock files
 .~lock.*#
+
+# convex local link
+.env.local
+node_modules/
+convex/_generated/
